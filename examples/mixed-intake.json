@@ -1,0 +1,35 @@
+{
+  "sources": [
+    {
+      "id": "program-note",
+      "type": "markdown",
+      "path": "examples/program-source.md",
+      "captured_at": "2026-05-12T14:00:00Z",
+      "freshness": "fresh",
+      "content": "# Checkout Rollout Capture\n\n- Decision: launch gate remains manual until provider fallback is verified. Owner PM due 2026-05-18.\n- BLOCKER: payment provider staging callback is blocked by missing firewall allowlist owner Platform by 2026-05-20.\n- Risk: QA sign-off may slip if staging confirmation arrives after 2026-05-21."
+    },
+    {
+      "id": "timeline-export",
+      "type": "csv",
+      "path": "examples/timeline-source.csv",
+      "captured_at": "2026-05-12T14:05:00Z",
+      "freshness": "fresh",
+      "content": "item,owner,due,dependency\nDiscovery,PM,2026-06-01,\nAPI contract,Platform,2026-06-06,Discovery\nCheckout QA,QA,2026-06-12,API contract\nLaunch decision,PM,2026-06-17,Checkout QA"
+    },
+    {
+      "id": "fixture-adapter-note",
+      "type": "json",
+      "key": "fixture:staging",
+      "adapter": "fixture",
+      "captured_at": "2026-05-12T14:10:00Z",
+      "freshness": "fixture",
+      "content": [
+        {
+          "action": "Confirm staging callback evidence",
+          "owner": "Platform",
+          "due": "2026-05-19"
+        }
+      ]
+    }
+  ]
+}

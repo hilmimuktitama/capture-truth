@@ -1,0 +1,43 @@
+{
+  "name": "capture-truth",
+  "version": "0.1.0",
+  "description": "Local-first evidence capture package for creating provenance-preserving evidence packs from messy source intake.",
+  "author": "hilmimuktitama",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "capture-truth": "bin/capture-truth.js",
+    "capture-truth-mcp": "src/mcp-server.js"
+  },
+  "files": [
+    "bin",
+    "docs",
+    "src",
+    "examples",
+    "references",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "evidence",
+    "provenance",
+    "source-capture",
+    "tpm",
+    "program-management",
+    "ai-agents"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check-syntax.js",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,5 @@
+item,owner,due,dependency
+Discovery,PM,2026-06-01,
+API contract,Platform,2026-06-06,Discovery
+Checkout QA,QA,2026-06-12,API contract
+Launch decision,PM,2026-06-17,Checkout QA

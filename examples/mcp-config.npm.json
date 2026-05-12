@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "capture-truth": {
+      "command": "npx",
+      "args": ["-y", "--package=capture-truth", "capture-truth-mcp"]
+    }
+  }
+}
