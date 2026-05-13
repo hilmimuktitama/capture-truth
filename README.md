@@ -6,6 +6,8 @@ Status: v0.1.0 local-first implementation. MIT licensed. Requires Node.js 22 or 
 
 It deliberately stops before status, risk, or timeline judgment. Use it to preserve what was captured and where it came from, then hand the pack to downstream workflows such as `program-truth` or `timeline-truth`.
 
+Repository: https://github.com/hilmimuktitama/capture-truth
+
 ## First Use
 
 ```json

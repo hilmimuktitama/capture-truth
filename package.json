@@ -4,6 +4,14 @@
   "description": "Local-first evidence capture package for creating provenance-preserving evidence packs from messy source intake.",
   "author": "hilmimuktitama",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hilmimuktitama/capture-truth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hilmimuktitama/capture-truth/issues"
+  },
+  "homepage": "https://github.com/hilmimuktitama/capture-truth#readme",
   "type": "module",
   "bin": {
     "capture-truth": "bin/capture-truth.js",

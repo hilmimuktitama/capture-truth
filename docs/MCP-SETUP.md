@@ -18,7 +18,7 @@ Use this MCP config while developing locally:
   "mcpServers": {
     "capture-truth": {
       "command": "node",
-      "args": ["C:/Users/USER/vscode/hilmimuktitama/resource-truth/src/mcp-server.js"]
+      "args": ["C:/path/to/capture-truth/src/mcp-server.js"]
     }
   }
 }
