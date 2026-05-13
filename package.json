@@ -1,6 +1,6 @@
 {
   "name": "capture-truth",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first evidence capture package for creating provenance-preserving evidence packs from messy source intake.",
   "author": "hilmimuktitama",
   "license": "MIT",
