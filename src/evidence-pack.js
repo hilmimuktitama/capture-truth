@@ -1,5 +1,13 @@
 const DEFAULT_ASSUMPTION = "No status, risk, timeline, or truth judgment was inferred.";
 const REFINE_ASSUMPTION = "Refinement preserved source_refs unless explicitly replaced.";
+export const EXPORT_PROFILES = ["repo-safe-summary", "internal-evidence-pack", "raw-local-only"];
+
+const SENSITIVE_PATTERNS = [
+  { name: "authorization_header", pattern: /\bAuthorization\s*:\s*(?:Basic|Bearer)\s+[A-Za-z0-9._~+/=-]+/i },
+  { name: "secret_assignment", pattern: /\b(?:secret|token|password|api[_-]?key)\s*[:=]\s*\S+/i },
+  { name: "private_key", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i },
+  { name: "customer_marker", pattern: /\b(?:customer|client)\s+(?:token|secret|credential|data)\b/i }
+];
 
 export function createEvidencePack({ sources, adapters = [], extraction_profile = "general" } = {}) {
   if (!Array.isArray(sources) || sources.length === 0) {
@@ -10,7 +18,7 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
   const claims = normalizedSources.flatMap((source) => extractClaims(source, extraction_profile));
   const entities = extractEntities(claims);
   const gaps = detectGaps(normalizedSources, claims);
-  const conflicts = detectConflicts(claims);
+  const conflicts = detectConflicts(claims, normalizedSources);
   const assumptions = [DEFAULT_ASSUMPTION];
 
   return {
@@ -25,6 +33,18 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
     conflicts,
     assumptions,
     exports: {
+      repo_safe_summary: renderEvidencePack(
+        {
+          kind: "evidence_pack",
+          sources: normalizedSources,
+          claims,
+          entities,
+          gaps,
+          conflicts,
+          assumptions
+        },
+        { format: "markdown", export_profile: "repo-safe-summary" }
+      ),
       markdown: renderEvidencePack(
         {
           kind: "evidence_pack",
@@ -53,7 +73,7 @@ export function validateEvidencePack(evidencePack = {}) {
   const sources = Array.isArray(evidencePack.sources) ? evidencePack.sources : [];
   const claims = Array.isArray(evidencePack.claims) ? evidencePack.claims : [];
   const gaps = detectGaps(sources, claims);
-  const conflicts = detectConflicts(claims);
+  const conflicts = detectConflicts(claims, sources);
 
   return {
     ok: gaps.length === 0 && conflicts.length === 0,
@@ -68,7 +88,11 @@ export function validateEvidencePack(evidencePack = {}) {
   };
 }
 
-export function renderEvidencePack(evidencePack = {}, { format = "markdown" } = {}) {
+export function renderEvidencePack(evidencePack = {}, { format = "markdown", export_profile } = {}) {
+  if (export_profile) {
+    return renderEvidencePackForProfile(evidencePack, { format, export_profile });
+  }
+
   if (format === "json") {
     return JSON.stringify(evidencePack, null, 2);
   }
@@ -123,7 +147,13 @@ export function renderEvidencePack(evidencePack = {}, { format = "markdown" } = 
     lines.push("- No unresolved conflicts detected.");
   } else {
     for (const conflict of conflicts) {
-      lines.push(`- ${conflict.type}: ${conflict.claim_ids.join(" vs ")}`);
+      if (conflict.claim && conflict.source_a && conflict.source_b) {
+        lines.push(
+          `- ${conflict.conflict_type}: ${conflict.claim} (${conflict.source_a.system}: ${conflict.source_a.value} vs ${conflict.source_b.system}: ${conflict.source_b.value})`
+        );
+      } else {
+        lines.push(`- ${conflict.type ?? "source_conflict"}: ${(conflict.claim_ids ?? []).join(" vs ") || conflict.message || "Owner follow-up needed."}`);
+      }
     }
   }
 
@@ -168,7 +198,7 @@ export function refineEvidencePack(evidencePack = {}, { updates = [] } = {}) {
   return {
     ...nextPack,
     gaps: detectGaps(nextPack.sources ?? [], claims),
-    conflicts: detectConflicts(claims),
+    conflicts: detectConflicts(claims, nextPack.sources ?? []),
     exports: {
       ...(evidencePack.exports ?? {}),
       markdown: renderEvidencePack(nextPack, { format: "markdown" })
@@ -423,24 +453,204 @@ function detectGaps(sources, claims) {
   return gaps;
 }
 
-function detectConflicts(claims) {
+export function checkRedaction(value) {
+  const text = JSON.stringify(value ?? {});
+  const blockedTerms = [];
+
+  for (const item of SENSITIVE_PATTERNS) {
+    if (item.pattern.test(text)) {
+      blockedTerms.push(item.name);
+    }
+  }
+
+  return {
+    ok: blockedTerms.length === 0,
+    blocked_terms: blockedTerms
+  };
+}
+
+function renderEvidencePackForProfile(evidencePack, { format, export_profile }) {
+  if (!EXPORT_PROFILES.includes(export_profile)) {
+    throw new Error(`Unsupported evidence pack export profile: ${export_profile}`);
+  }
+
+  if (export_profile === "raw-local-only") {
+    return renderEvidencePack(evidencePack, { format });
+  }
+
+  if (export_profile === "internal-evidence-pack") {
+    const redacted = cloneWithoutRawContent(evidencePack);
+    return format === "json" ? JSON.stringify(redacted, null, 2) : renderRepoSafeSummary(redacted, export_profile);
+  }
+
+  return renderRepoSafeSummary(evidencePack, export_profile);
+}
+
+function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
+  const sources = evidencePack.sources ?? [];
+  const claims = evidencePack.claims ?? [];
+  const gaps = evidencePack.gaps ?? [];
+  const conflicts = evidencePack.conflicts ?? [];
+  const assumptions = evidencePack.assumptions ?? [];
+  const redaction = checkRedaction(evidencePack);
+  const lines = ["# Evidence Pack", "", `Export profile: ${exportProfile}`, ""];
+
+  lines.push("## Summary");
+  lines.push(`- Sources: ${sources.length}`);
+  lines.push(`- Claims: ${claims.length}`);
+  lines.push(`- Gaps: ${gaps.length}`);
+  lines.push(`- Conflicts: ${conflicts.length}`);
+
+  lines.push("", "## Sources");
+  if (sources.length === 0) {
+    lines.push("- No sources captured.");
+  } else {
+    for (const source of sources) {
+      lines.push(
+        `- ${source.id} (${source.type ?? "unknown"}, adapter: ${source.adapter ?? "unknown"}) - captured: ${
+          source.captured_at ?? "unknown"
+        }, freshness: ${source.freshness ?? "unknown"}`
+      );
+    }
+  }
+
+  lines.push("", "## Gaps");
+  if (gaps.length === 0) {
+    lines.push("- No validation gaps detected.");
+  } else {
+    for (const gap of gaps) {
+      lines.push(`- ${gap.type}: ${gap.message}`);
+    }
+  }
+
+  lines.push("", "## Conflicts");
+  if (conflicts.length === 0) {
+    lines.push("- No unresolved conflicts detected.");
+  } else {
+    for (const conflict of conflicts) {
+      lines.push(
+        `- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"} - ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`
+      );
+    }
+  }
+
+  if (assumptions.length > 0) {
+    lines.push("", "## Assumptions");
+    for (const assumption of assumptions) {
+      lines.push(`- ${assumption}`);
+    }
+  }
+
+  if (!redaction.ok) {
+    lines.push("", "## Redaction warnings");
+    for (const term of redaction.blocked_terms) {
+      lines.push(`- ${term} detected in source material and omitted from this export.`);
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function cloneWithoutRawContent(value) {
+  if (Array.isArray(value)) return value.map(cloneWithoutRawContent);
+  if (!value || typeof value !== "object") return value;
+
+  const next = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "content") {
+      next.content_redacted = true;
+      continue;
+    }
+    next[key] = cloneWithoutRawContent(entry);
+  }
+  return next;
+}
+
+function detectConflicts(claims, sources = []) {
   const conflicts = [];
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
 
   for (let leftIndex = 0; leftIndex < claims.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < claims.length; rightIndex += 1) {
       const left = claims[leftIndex];
       const right = claims[rightIndex];
+      const dateConflict = detectDateConflict(left, right, sourceById);
+      if (dateConflict) {
+        conflicts.push(dateConflict);
+        continue;
+      }
+
       if (isNegatedPair(left.text, right.text)) {
-        conflicts.push({
-          type: "unresolved_negation",
-          claim_ids: [left.id, right.id],
-          message: "Claims appear to contradict each other and were not resolved."
-        });
+        conflicts.push(makeConflict({
+          claim: describeNegationClaim(left.text, right.text),
+          sourceA: sourceRefToConflictSource(left, sourceById),
+          sourceB: sourceRefToConflictSource(right, sourceById),
+          conflictType: "claim_disagreement"
+        }));
       }
     }
   }
 
   return conflicts;
+}
+
+function detectDateConflict(left, right, sourceById) {
+  const leftTickets = extractTickets(left.text);
+  const rightTickets = extractTickets(right.text);
+  const sharedTicket = leftTickets.find((ticket) => rightTickets.includes(ticket));
+  if (!sharedTicket) return null;
+
+  const leftDates = extractDates(left.text);
+  const rightDates = extractDates(right.text);
+  const leftDate = leftDates[0];
+  const rightDate = rightDates[0];
+  if (!leftDate || !rightDate || leftDate === rightDate) return null;
+
+  return makeConflict({
+    claim: `${sharedTicket} date`,
+    sourceA: sourceRefToConflictSource(left, sourceById, leftDate),
+    sourceB: sourceRefToConflictSource(right, sourceById, rightDate),
+    conflictType: "date_mismatch"
+  });
+}
+
+function makeConflict({ claim, sourceA, sourceB, conflictType }) {
+  return {
+    claim,
+    source_a: sourceA,
+    source_b: sourceB,
+    conflict_type: conflictType,
+    recommended_owner_action:
+      "Assign an owner to reconcile the source disagreement and update the system of record."
+  };
+}
+
+function sourceRefToConflictSource(claim, sourceById, value = claim.text) {
+  const sourceId = claim.source_refs?.[0]?.source_id ?? claim.source_refs?.[0]?.sourceId ?? "unknown";
+  const source = sourceById.get(sourceId) ?? {};
+  return compactObject({
+    system: sourceId,
+    value,
+    captured_at: source.captured_at ?? undefined,
+    freshness: source.freshness ?? undefined
+  });
+}
+
+function extractTickets(text) {
+  return unique(String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []);
+}
+
+function extractDates(text) {
+  return unique(String(text).match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? []);
+}
+
+function describeNegationClaim(leftText, rightText) {
+  const text = String(leftText || rightText);
+  const blockedBy = text.match(/^(.+?)\s+is\s+(?:not\s+)?blocked by\s+(.+?)\.?$/i);
+  if (blockedBy) {
+    return `${capitalize(blockedBy[1])} ${blockedBy[2].replace(/\.$/, "")} blocker`;
+  }
+  return stripNegation(normalizeConflictText(text));
 }
 
 function isNegatedPair(leftText, rightText) {
@@ -480,6 +690,15 @@ function unique(values) {
 
 function slugify(value) {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "source";
+}
+
+function compactObject(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+}
+
+function capitalize(value) {
+  const text = String(value).trim();
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : text;
 }
 
 function hashContent(content) {

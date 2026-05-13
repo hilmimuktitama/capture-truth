@@ -10,7 +10,8 @@ test("lists the capture-truth MCP tool surface", () => {
     "create_evidence_pack",
     "validate_evidence_pack",
     "render_evidence_pack",
-    "refine_evidence_pack"
+    "refine_evidence_pack",
+    "run_capture_benchmark_fixture"
   ]);
 });
 
@@ -42,6 +43,22 @@ test("calls create, validate, render, and refine tools", () => {
   }).content[0].text;
   assert.match(markdown, /Owner TPM captured source intake/);
 
+  const safeMarkdown = callCaptureTool("render_evidence_pack", {
+    evidence_pack: {
+      ...created,
+      sources: [
+        {
+          ...created.sources[0],
+          content: "Customer token secret=abc123 should not leave local evidence."
+        }
+      ]
+    },
+    format: "markdown",
+    export_profile: "repo-safe-summary"
+  }).content[0].text;
+  assert.match(safeMarkdown, /Export profile: repo-safe-summary/);
+  assert.doesNotMatch(safeMarkdown, /abc123/);
+
   const refined = JSON.parse(
     callCaptureTool("refine_evidence_pack", {
       evidence_pack: created,
@@ -49,4 +66,12 @@ test("calls create, validate, render, and refine tools", () => {
     }).content[0].text
   );
   assert.equal(refined.claims[0].classification, "action");
+});
+
+test("calls benchmark fixture tool", () => {
+  const result = JSON.parse(callCaptureTool("run_capture_benchmark_fixture").content[0].text);
+
+  assert.equal(result.mode, "capture-truth-benchmark-fixture");
+  assert.equal(result.evidence_pack.conflicts.length, 2);
+  assert.match(result.repo_safe_summary, /Export profile: repo-safe-summary/);
 });

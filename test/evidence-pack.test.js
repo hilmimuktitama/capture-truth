@@ -94,6 +94,52 @@ test("validates missing metadata, duplicate sources, stale freshness, and unreso
   assert.equal(validation.gaps.some((gap) => gap.type === "missing_freshness"), true);
   assert.equal(validation.gaps.some((gap) => gap.type === "stale_source"), true);
   assert.equal(validation.conflicts.length, 1);
+  assert.equal(validation.conflicts[0].claim, "Launch payment QA blocker");
+  assert.equal(validation.conflicts[0].source_a.system, "jira-1");
+  assert.equal(validation.conflicts[0].source_b.system, "jira-1");
+  assert.equal(validation.conflicts[0].conflict_type, "claim_disagreement");
+  assert.match(validation.conflicts[0].recommended_owner_action, /reconcile/i);
+});
+
+test("detects same-ticket date conflicts as first-class reconciliation work", () => {
+  const pack = createEvidencePack({
+    sources: [
+      {
+        id: "local-note",
+        type: "text",
+        captured_at: "2026-05-14T00:00:00Z",
+        freshness: "stale",
+        content: "TF-2944 real-client start date is 2026-05-27."
+      },
+      {
+        id: "jira",
+        type: "text",
+        captured_at: "2026-05-14T01:00:00Z",
+        freshness: "fresh",
+        content: "TF-2944 real-client start date is 2026-06-02."
+      }
+    ]
+  });
+
+  assert.equal(pack.conflicts.length, 1);
+  assert.deepEqual(pack.conflicts[0], {
+    claim: "TF-2944 date",
+    source_a: {
+      system: "local-note",
+      value: "2026-05-27",
+      captured_at: "2026-05-14T00:00:00Z",
+      freshness: "stale"
+    },
+    source_b: {
+      system: "jira",
+      value: "2026-06-02",
+      captured_at: "2026-05-14T01:00:00Z",
+      freshness: "fresh"
+    },
+    conflict_type: "date_mismatch",
+    recommended_owner_action:
+      "Assign an owner to reconcile the source disagreement and update the system of record."
+  });
 });
 
 test("renders evidence packs as markdown and json", () => {
@@ -116,6 +162,54 @@ test("renders evidence packs as markdown and json", () => {
   assert.match(markdown, /## Sources/);
   assert.match(markdown, /Owner PM will confirm launch decision/);
   assert.deepEqual(JSON.parse(json).kind, "evidence_pack");
+});
+
+test("renders repo-safe summaries without raw source bodies or sensitive values", () => {
+  const pack = createEvidencePack({
+    sources: [
+      {
+        id: "jira-raw",
+        type: "text",
+        captured_at: "2026-05-12T14:00:00Z",
+        freshness: "fresh",
+        content: "Customer token secret=abc123. Raw launch detail must stay local."
+      }
+    ]
+  });
+
+  const markdown = renderEvidencePack(pack, {
+    format: "markdown",
+    export_profile: "repo-safe-summary"
+  });
+
+  assert.match(markdown, /# Evidence Pack/);
+  assert.match(markdown, /Export profile: repo-safe-summary/);
+  assert.match(markdown, /Redaction warnings/);
+  assert.doesNotMatch(markdown, /abc123/);
+  assert.doesNotMatch(markdown, /Raw launch detail must stay local/);
+});
+
+test("renders internal evidence packs with raw content redacted", () => {
+  const pack = createEvidencePack({
+    sources: [
+      {
+        id: "confluence",
+        type: "text",
+        captured_at: "2026-05-12T14:00:00Z",
+        freshness: "fresh",
+        content: "Private readiness note."
+      }
+    ]
+  });
+
+  const json = renderEvidencePack(pack, {
+    format: "json",
+    export_profile: "internal-evidence-pack"
+  });
+  const parsed = JSON.parse(json);
+
+  assert.equal(parsed.sources[0].content_redacted, true);
+  assert.equal(parsed.sources[0].content, undefined);
 });
 
 test("refines packs without dropping existing source refs", () => {

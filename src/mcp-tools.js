@@ -4,6 +4,7 @@ import {
   renderEvidencePack,
   validateEvidencePack
 } from "./evidence-pack.js";
+import { runBenchmarkFixture } from "./benchmark.js";
 
 const SOURCE_SCHEMA = {
   type: "object",
@@ -95,6 +96,11 @@ export function listCaptureTools() {
             type: "string",
             enum: ["markdown", "json"],
             default: "markdown"
+          },
+          export_profile: {
+            type: "string",
+            enum: ["repo-safe-summary", "internal-evidence-pack", "raw-local-only"],
+            description: "Optional safety profile. repo-safe-summary omits raw source bodies from Markdown."
           }
         }
       }
@@ -124,6 +130,16 @@ export function listCaptureTools() {
           }
         }
       }
+    },
+    {
+      name: "run_capture_benchmark_fixture",
+      description:
+        "Run the deterministic capture-truth benchmark fixture covering stale sources, date conflicts, claim disagreement, repo-safe export, and redaction checks.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {}
+      }
     }
   ];
 }
@@ -135,9 +151,11 @@ export function callCaptureTool(name, args = {}) {
     case "validate_evidence_pack":
       return jsonContent(validateEvidencePack(args.evidence_pack));
     case "render_evidence_pack":
-      return textContent(renderEvidencePack(args.evidence_pack, { format: args.format }));
+      return textContent(renderEvidencePack(args.evidence_pack, { format: args.format, export_profile: args.export_profile }));
     case "refine_evidence_pack":
       return jsonContent(refineEvidencePack(args.evidence_pack, { updates: args.updates }));
+    case "run_capture_benchmark_fixture":
+      return jsonContent(runBenchmarkFixture());
     default:
       throw new Error(`Unknown capture tool: ${name}`);
   }
