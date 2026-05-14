@@ -8,6 +8,35 @@ It deliberately stops before status, risk, or timeline judgment. Use it to prese
 
 Repository: https://github.com/hilmimuktitama/capture-truth
 
+## Mental Model
+
+`capture-truth` sits before analysis. It turns messy source material into an auditable evidence pack, then hands that pack to humans or downstream workflows for judgment.
+
+```mermaid
+flowchart LR
+  A["Raw inputs<br/>Notes, files, CSV, JSON, compact system records"] --> B["capture-truth create"]
+  B --> C["Normalize sources<br/>id, type, adapter,<br/>captured_at, freshness"]
+  C --> D["Extract atomic claims"]
+  D --> E["Attach source_refs<br/>source id + line, row, or object locator"]
+  E --> F["Validate evidence pack"]
+  F --> G{"Validation result"}
+  G -->|Metadata issue| H["Gaps<br/>missing timestamps<br/>missing freshness<br/>stale sources<br/>access caveats"]
+  G -->|Source disagreement| I["Conflicts<br/>date_mismatch<br/>claim_disagreement"]
+  G -->|No obvious issue| J["Reviewable evidence pack"]
+  H --> J
+  I --> J
+  J --> K["Render output<br/>repo-safe summary<br/>internal redacted pack<br/>raw local-only pack"]
+  K --> L["Downstream review<br/>program-truth, timeline-truth,<br/>or human judgment"]
+```
+
+The important boundary: `capture-truth` preserves evidence and source quality. It does not decide final status, risk, ownership, timeline, or program truth.
+
+## Why It Helps
+
+Without capture first, agents can flatten disagreement into a confident but unsupported summary. With `capture-truth`, stale notes, missing metadata, source conflicts, and sensitive raw content are surfaced before anyone writes a status report or timeline.
+
+Example: if a local note says `DEMO-100` starts on `2026-06-01` but a system record says `2026-06-08`, `capture-truth` emits a `date_mismatch` conflict instead of silently choosing one.
+
 ## Truth Tools Surface
 
 `truth-tools` is the aggregate CLI and MCP entrypoint bundled with this package. It exposes one consistent callable surface:
