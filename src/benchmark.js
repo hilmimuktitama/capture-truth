@@ -32,6 +32,31 @@ export function runBenchmarkFixture() {
   };
 }
 
+export function createBenchmarkFixture({
+  case_id = "truth-tools-case",
+  with_tools = {},
+  without_tools = {}
+} = {}) {
+  const withConflicts = count(with_tools.conflicts);
+  const withoutConflicts = count(without_tools.conflicts);
+  const withUnknowns = count(with_tools.unknowns);
+  const withoutUnknowns = count(without_tools.unknowns);
+
+  return {
+    kind: "truth_tools_benchmark_fixture",
+    version: "0.1.0",
+    case_id,
+    with_tools,
+    without_tools,
+    comparison: {
+      conflicts_delta: withConflicts - withoutConflicts,
+      unknowns_delta: withUnknowns - withoutUnknowns,
+      evidence_items_delta: count(with_tools.evidence_items) - count(without_tools.evidence_items)
+    },
+    recommended_use: "Use fixture to compare the same case with tools versus without tools."
+  };
+}
+
 export function renderBenchmarkFixture(result = runBenchmarkFixture()) {
   const lines = [
     "# Capture Truth Benchmark Fixture",
@@ -94,4 +119,8 @@ function createBenchmarkSources() {
       url: "https://example.atlassian.net/wiki/spaces/TPM/pages/BIF-7550"
     })
   ];
+}
+
+function count(value) {
+  return Array.isArray(value) ? value.length : 0;
 }

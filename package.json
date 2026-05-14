@@ -1,7 +1,7 @@
 {
   "name": "capture-truth",
-  "version": "0.2.0",
-  "description": "Local-first evidence capture package for creating provenance-preserving evidence packs from messy source intake.",
+  "version": "0.2.1",
+  "description": "Local-first truth-tools package for capture, program reconciliation, timeline unknowns, and provenance-preserving TPM evidence packs.",
   "author": "hilmimuktitama",
   "license": "MIT",
   "repository": {
@@ -15,7 +15,9 @@
   "type": "module",
   "bin": {
     "capture-truth": "bin/capture-truth.js",
-    "capture-truth-mcp": "src/mcp-server.js"
+    "capture-truth-mcp": "src/mcp-server.js",
+    "truth-tools": "bin/truth-tools.js",
+    "truth-tools-mcp": "src/truth-mcp-server.js"
   },
   "files": [
     "bin",

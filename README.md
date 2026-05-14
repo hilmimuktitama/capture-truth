@@ -1,12 +1,24 @@
 # Capture Truth
 
-Status: v0.1.0 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
+Status: v0.2.1 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
 
 `capture-truth` is a reusable evidence intake package for AI-agent TPM and operator workflows. It turns pasted text, local files, CSV/JSON exports, and read-only adapter outputs into a neutral `evidence_pack` with source snapshots, extracted claims, source refs, freshness metadata, validation gaps, unresolved conflicts, and portable renders.
 
 It deliberately stops before status, risk, or timeline judgment. Use it to preserve what was captured and where it came from, then hand the pack to downstream workflows such as `program-truth` or `timeline-truth`.
 
 Repository: https://github.com/hilmimuktitama/capture-truth
+
+## Truth Tools Surface
+
+`truth-tools` is the aggregate CLI and MCP entrypoint bundled with this package. It exposes one consistent callable surface:
+
+- `capture.create`, `capture.validate`, `capture.render`
+- `program.reconcile`
+- `timeline.create`, `timeline.validate`, `timeline.render`
+- `benchmark.fixture`
+- `truth_tools.doctor`
+
+Use this surface when benchmarking or wiring agents that should not need separate setup for capture, program status, and timeline checks.
 
 ## First Use
 
@@ -39,7 +51,9 @@ Local checkout:
 npm install
 npm test
 capture-truth doctor
+truth-tools doctor --all
 node src/mcp-server.js
+node src/truth-mcp-server.js
 ```
 
 See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for local and npm MCP config examples.
@@ -52,6 +66,10 @@ Npm package config:
     "capture-truth": {
       "command": "npx",
       "args": ["-y", "--package=capture-truth", "capture-truth-mcp"]
+    },
+    "truth-tools": {
+      "command": "npx",
+      "args": ["-y", "--package=capture-truth", "truth-tools-mcp"]
     }
   }
 }
@@ -66,15 +84,37 @@ capture-truth create --json-out < intake.json
 capture-truth validate < evidence-pack.json
 capture-truth render --format markdown < evidence-pack.json
 capture-truth render --format markdown --export-profile repo-safe-summary < evidence-pack.json
+
+truth-tools doctor --all
+truth-tools capture.create --json-out < intake.json
+truth-tools capture.validate < evidence-pack.json
+truth-tools capture.render --format markdown --export-profile repo-safe-summary < evidence-pack.json
+truth-tools program.reconcile < evidence-pack.json
+truth-tools timeline.create --json-out < timeline-input.json
+truth-tools timeline.validate < timeline.json
+truth-tools timeline.render --format markdown < timeline.json
+truth-tools benchmark.fixture --json-out < benchmark-case.json
 ```
 
-## MCP Tools
+## Capture MCP Tools
 
 - `create_evidence_pack`: compile sources into neutral evidence pack JSON.
 - `validate_evidence_pack`: report missing source refs, missing capture metadata, stale sources, duplicate source ids, and unresolved conflicts.
 - `render_evidence_pack`: render as Markdown or JSON, optionally with an export profile.
 - `refine_evidence_pack`: apply reviewer edits while preserving `source_refs` unless explicitly replaced.
 - `run_capture_benchmark_fixture`: run a deterministic fixture covering stale sources, source conflicts, repo-safe export, and redaction checks.
+
+## Aggregate MCP Tools
+
+- `capture.create`: compile sources into neutral evidence pack JSON.
+- `capture.validate`: validate captured evidence for metadata gaps and source conflicts.
+- `capture.render`: render evidence with repo-safe, internal, or raw-local export profiles.
+- `program.reconcile`: emit a standard program status object with confirmed facts, blockers, risks, unknowns, conflicts, assumptions, and write-back recommendations.
+- `timeline.create`: create timelines with explicit `date_status` values.
+- `timeline.validate`: validate timeline unknowns and milestone-blocking fields.
+- `timeline.render`: render timelines without inventing dates for TBC or conflicting fields.
+- `benchmark.fixture`: compare with-tools and without-tools benchmark outputs.
+- `truth_tools.doctor`: smoke-test install, schema, render, adapters, and MCP availability.
 
 ## Export Profiles
 
