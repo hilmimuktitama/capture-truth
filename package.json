@@ -1,6 +1,6 @@
 {
   "name": "capture-truth",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Local-first truth-tools package for capture, program reconciliation, timeline unknowns, and provenance-preserving TPM evidence packs.",
   "author": "hilmimuktitama",
   "license": "MIT",
