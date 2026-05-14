@@ -44,7 +44,7 @@ test("CLI renders repo-safe evidence summaries", () => {
               type: "text",
               captured_at: "2026-05-12T14:00:00Z",
               freshness: "fresh",
-              content: "Customer token secret=abc123 should not render."
+              content: "Fixture credential api_key=REDACTED_EXAMPLE should not render."
             }
           ],
           claims: [

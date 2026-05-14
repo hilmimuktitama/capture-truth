@@ -109,21 +109,21 @@ test("detects same-ticket date conflicts as first-class reconciliation work", ()
         type: "text",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "stale",
-        content: "TF-2944 real-client start date is 2026-05-27."
+        content: "DEMO-2944 example-rollout start date is 2026-05-27."
       },
       {
         id: "jira",
         type: "text",
         captured_at: "2026-05-14T01:00:00Z",
         freshness: "fresh",
-        content: "TF-2944 real-client start date is 2026-06-02."
+        content: "DEMO-2944 example-rollout start date is 2026-06-02."
       }
     ]
   });
 
   assert.equal(pack.conflicts.length, 1);
   assert.deepEqual(pack.conflicts[0], {
-    claim: "TF-2944 date",
+    claim: "DEMO-2944 date",
     source_a: {
       system: "local-note",
       value: "2026-05-27",
@@ -172,7 +172,7 @@ test("renders repo-safe summaries without raw source bodies or sensitive values"
         type: "text",
         captured_at: "2026-05-12T14:00:00Z",
         freshness: "fresh",
-        content: "Customer token secret=abc123. Raw launch detail must stay local."
+        content: "Fixture credential api_key=REDACTED_EXAMPLE. Raw launch detail must stay local."
       }
     ]
   });

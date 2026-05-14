@@ -18,8 +18,8 @@ test("benchmark fixture returns deterministic conflict and repo-safe export outp
   assert.doesNotMatch(result.repo_safe_summary, /secret=abc123/);
   assert.deepEqual(result.expected_findings, [
     "stale local note should not override fresher Jira evidence",
-    "TF-2944 date conflict should be emitted as date_mismatch",
-    "BIF-7550 readiness conflict should be emitted as claim_disagreement",
+    "DEMO-2944 date conflict should be emitted as date_mismatch",
+    "DOCS-7550 readiness conflict should be emitted as claim_disagreement",
     "repo-safe summary should omit raw source bodies and sensitive values"
   ]);
 });

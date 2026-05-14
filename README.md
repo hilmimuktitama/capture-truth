@@ -132,7 +132,7 @@ Unresolved source conflicts are emitted as actionable reconciliation objects:
 
 ```json
 {
-  "claim": "TF-2944 date",
+  "claim": "DEMO-2944 date",
   "source_a": {
     "system": "local-note",
     "value": "2026-05-27",
@@ -174,12 +174,12 @@ Jira compact intake preserves fields such as key, summary, status, assignee, par
 import { createJiraCompactAdapter } from "capture-truth/src/adapters.js";
 
 const source = createJiraCompactAdapter().read({
-  key: "TF-2944",
-  summary: "Real-client rollout",
+  key: "DEMO-2944",
+  summary: "Example rollout",
   status: "In Progress",
   assignee: "Platform",
   updated_at: "2026-05-13T12:00:00Z",
-  url: "https://example.atlassian.net/browse/TF-2944"
+  url: "https://example.atlassian.net/browse/DEMO-2944"
 });
 ```
 

@@ -49,7 +49,7 @@ test("calls create, validate, render, and refine tools", () => {
       sources: [
         {
           ...created.sources[0],
-          content: "Customer token secret=abc123 should not leave local evidence."
+          content: "Fixture credential api_key=REDACTED_EXAMPLE should not leave local evidence."
         }
       ]
     },

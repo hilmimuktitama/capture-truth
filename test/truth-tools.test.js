@@ -11,10 +11,10 @@ const INTAKE = {
       id: "jira-tf-2944",
       type: "text",
       adapter: "jira",
-      key: "TF-2944",
+      key: "DEMO-2944",
       captured_at: "2026-05-14T02:00:00Z",
       freshness: "fresh",
-      content: "TF-2944 is blocked by API owner gap. Contact owner@example.com for token Basic abc123."
+      content: "DEMO-2944 is blocked by API owner gap. Contact demo@example.invalid for token Bearer REDACTED_EXAMPLE."
     }
   ]
 };
@@ -33,7 +33,7 @@ test("truth-tools CLI exposes capture dot commands", () => {
   assert.equal(result.status, 0, result.stderr);
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.kind, "evidence_pack");
-  assert.equal(parsed.sources[0].key, "TF-2944");
+  assert.equal(parsed.sources[0].key, "DEMO-2944");
 });
 
 test("truth-tools doctor verifies install, schema, render, and MCP surfaces", () => {
@@ -98,6 +98,6 @@ test("repo-safe rendering redacts sensitive claims before export", () => {
   });
 
   assert.match(markdown, /Export profile: repo-safe-summary/);
-  assert.doesNotMatch(markdown, /owner@example.com/);
-  assert.doesNotMatch(markdown, /Basic abc123/);
+  assert.doesNotMatch(markdown, /demo@example.invalid/);
+  assert.doesNotMatch(markdown, /Bearer REDACTED_EXAMPLE/);
 });

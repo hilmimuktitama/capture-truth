@@ -13,16 +13,16 @@ test("conflicts are first-class reconciliation objects with owner action", () =>
         type: "text",
         captured_at: "2026-05-10T00:00:00Z",
         freshness: "stale",
-        content: "TF-2944 is blocked by API owner gap."
+        content: "DEMO-2944 is blocked by API owner gap."
       },
       {
         id: "jira",
         type: "text",
         adapter: "jira",
-        key: "TF-2944",
+        key: "DEMO-2944",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "fresh",
-        content: "TF-2944 is not blocked by API owner gap."
+        content: "DEMO-2944 is not blocked by API owner gap."
       }
     ]
   });
@@ -49,10 +49,10 @@ test("program reconcile returns the standard program-status schema", () => {
         id: "bifrost-jira",
         type: "text",
         adapter: "jira",
-        key: "BIF-7550",
+        key: "DOCS-7550",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "fresh",
-        content: "BIF-7550 remains open and blocked by readiness sign-off."
+        content: "DOCS-7550 remains open and blocked by readiness sign-off."
       },
       {
         id: "readiness-doc",
@@ -60,7 +60,7 @@ test("program reconcile returns the standard program-status schema", () => {
         adapter: "confluence",
         captured_at: "2026-05-13T00:00:00Z",
         freshness: "captured",
-        content: "Confluence readiness says Bifrost is ready."
+        content: "Confluence readiness says Example is ready."
       }
     ]
   });
@@ -101,7 +101,7 @@ test("timeline preserves TBC, exact, and conflicting date status explicitly", ()
         blocks_next_milestone: "unknown"
       },
       {
-        id: "real-client-start",
+        id: "example-rollout-start",
         label: "Real client start",
         date: "2026-05-27",
         alternate_dates: ["2026-06-02"]

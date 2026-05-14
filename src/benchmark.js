@@ -25,8 +25,8 @@ export function runBenchmarkFixture() {
     repo_safe_summary: repoSafeSummary,
     expected_findings: [
       "stale local note should not override fresher Jira evidence",
-      "TF-2944 date conflict should be emitted as date_mismatch",
-      "BIF-7550 readiness conflict should be emitted as claim_disagreement",
+      "DEMO-2944 date conflict should be emitted as date_mismatch",
+      "DOCS-7550 readiness conflict should be emitted as claim_disagreement",
       "repo-safe summary should omit raw source bodies and sensitive values"
     ]
   };
@@ -96,27 +96,27 @@ function createBenchmarkSources() {
       captured_at: "2026-05-01T00:00:00Z",
       freshness: "stale",
       content: [
-        "TF-2944 real-client start date is 2026-05-27.",
-        "title: BIF-7550 readiness is ready.",
-        "Customer token secret=abc123 must remain local."
+        "DEMO-2944 example-rollout start date is 2026-05-27.",
+        "title: DOCS-7550 readiness is ready.",
+        "Fixture credential api_key=REDACTED_EXAMPLE must remain local."
       ].join("\n")
     },
     jira.read({
-      key: "TF-2944",
-      summary: "TF-2944 real-client start date is 2026-06-02.",
+      key: "DEMO-2944",
+      summary: "DEMO-2944 example-rollout start date is 2026-06-02.",
       status: "In Progress",
       assignee: "Platform",
       updated_at: "2026-05-13T12:00:00Z",
-      url: "https://example.atlassian.net/browse/TF-2944"
+      url: "https://example.atlassian.net/browse/DEMO-2944"
     }),
     confluence.read({
-      id: "BIF-7550",
-      title: "BIF-7550 readiness is not ready",
-      space: "TPM",
+      id: "DOCS-7550",
+      title: "DOCS-7550 readiness is not ready",
+      space: "DEMO",
       status: "current",
       version: 12,
       updated_at: "2026-05-13T10:00:00Z",
-      url: "https://example.atlassian.net/wiki/spaces/TPM/pages/BIF-7550"
+      url: "https://example.atlassian.net/wiki/spaces/DEMO/pages/DOCS-7550"
     })
   ];
 }

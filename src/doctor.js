@@ -52,14 +52,14 @@ function checkSchema() {
         type: "text",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "stale",
-        content: "TF-2944 real-client start date is 2026-05-27."
+        content: "DEMO-2944 example-rollout start date is 2026-05-27."
       },
       {
         id: "jira",
         type: "text",
         captured_at: "2026-05-14T01:00:00Z",
         freshness: "fresh",
-        content: "TF-2944 real-client start date is 2026-06-02."
+        content: "DEMO-2944 example-rollout start date is 2026-06-02."
       }
     ]
   });
@@ -83,7 +83,7 @@ function checkRender() {
         type: "text",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "fresh",
-        content: "Customer token secret=abc123 should not render in repo-safe output."
+        content: "Fixture credential api_key=REDACTED_EXAMPLE should not render in repo-safe output."
       }
     ]
   });
@@ -104,14 +104,14 @@ function checkRender() {
 
 function checkAdapters() {
   const jira = createJiraCompactAdapter({ now: () => new Date("2026-05-14T00:00:00Z") }).read({
-    key: "TF-2944",
-    summary: "Real-client rollout",
+    key: "DEMO-2944",
+    summary: "Example rollout",
     status: "In Progress",
     updated_at: "2026-05-13T00:00:00Z"
   });
   const confluence = createConfluenceCompactAdapter({ now: () => new Date("2026-05-14T00:00:00Z") }).read({
-    id: "BIF-7550",
-    title: "Bifrost readiness",
+    id: "DOCS-7550",
+    title: "Example readiness",
     updated_at: "2026-05-13T00:00:00Z"
   });
 
