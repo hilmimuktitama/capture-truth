@@ -15,6 +15,10 @@ test("benchmark fixture returns deterministic conflict and repo-safe export outp
   assert.equal(result.validation.gaps.some((gap) => gap.type === "stale_source"), true);
   assert.match(result.repo_safe_summary, /Export profile: repo-safe-summary/);
   assert.match(result.repo_safe_summary, /Redaction warnings/);
+  assert.match(result.repo_safe_summary, /local-note: 2026-05-27/);
+  assert.match(result.repo_safe_summary, /jira-DEMO-2944: 2026-06-02/);
+  assert.match(result.repo_safe_summary, /freshness: stale/);
+  assert.match(result.repo_safe_summary, /freshness: fresh/);
   assert.doesNotMatch(result.repo_safe_summary, /secret=abc123/);
   assert.deepEqual(result.expected_findings, [
     "stale local note should not override fresher Jira evidence",

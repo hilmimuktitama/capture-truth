@@ -528,9 +528,16 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
     lines.push("- No unresolved conflicts detected.");
   } else {
     for (const conflict of conflicts) {
-      lines.push(
-        `- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"} - ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`
-      );
+      if (conflict.source_a && conflict.source_b) {
+        lines.push(`- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"}`);
+        lines.push(`  - ${renderRepoSafeConflictSource(conflict.source_a)}`);
+        lines.push(`  - ${renderRepoSafeConflictSource(conflict.source_b)}`);
+        lines.push(`  - Action: ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`);
+      } else {
+        lines.push(
+          `- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"} - ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`
+        );
+      }
     }
   }
 
@@ -549,6 +556,20 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderRepoSafeConflictSource(source = {}) {
+  const system = source.system ?? "unknown";
+  const value = renderRepoSafeConflictValue(source.value);
+  const capturedAt = source.captured_at ?? "unknown";
+  const freshness = source.freshness ?? "unknown";
+
+  return `${system}: ${value}, captured: ${capturedAt}, freshness: ${freshness}`;
+}
+
+function renderRepoSafeConflictValue(value) {
+  const text = value === null || value === undefined ? "unknown" : String(value);
+  return checkRedaction(text).ok ? text : "[redacted]";
 }
 
 function cloneWithoutRawContent(value) {

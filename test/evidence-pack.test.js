@@ -189,6 +189,46 @@ test("renders repo-safe summaries without raw source bodies or sensitive values"
   assert.doesNotMatch(markdown, /Raw launch detail must stay local/);
 });
 
+test("renders repo-safe conflict details while redacting sensitive conflict values", () => {
+  const pack = {
+    kind: "evidence_pack",
+    sources: [],
+    claims: [],
+    gaps: [],
+    conflicts: [
+      {
+        claim: "API token mismatch",
+        source_a: {
+          system: "local-note",
+          value: "api_key=REDACTED_EXAMPLE",
+          captured_at: "2026-05-01T00:00:00Z",
+          freshness: "stale"
+        },
+        source_b: {
+          system: "jira-DEMO-2944",
+          value: "2026-06-02",
+          captured_at: "2026-05-14T00:00:00.000Z",
+          freshness: "fresh"
+        },
+        conflict_type: "claim_disagreement",
+        recommended_owner_action: "Assign an owner to reconcile the source disagreement."
+      }
+    ],
+    assumptions: []
+  };
+
+  const markdown = renderEvidencePack(pack, {
+    format: "markdown",
+    export_profile: "repo-safe-summary"
+  });
+
+  assert.match(markdown, /claim_disagreement: API token mismatch/);
+  assert.match(markdown, /local-note: \[redacted\], captured: 2026-05-01T00:00:00Z, freshness: stale/);
+  assert.match(markdown, /jira-DEMO-2944: 2026-06-02, captured: 2026-05-14T00:00:00.000Z, freshness: fresh/);
+  assert.match(markdown, /Action: Assign an owner to reconcile the source disagreement\./);
+  assert.doesNotMatch(markdown, /api_key=REDACTED_EXAMPLE/);
+});
+
 test("renders internal evidence packs with raw content redacted", () => {
   const pack = createEvidencePack({
     sources: [
