@@ -5,6 +5,35 @@
 - `capture-truth`: capture-only legacy surface.
 - `truth-tools`: aggregate capture, program, timeline, benchmark, and doctor surface.
 
+## Agent-Assisted Setup
+
+Give this prompt to an MCP-capable AI agent when you want it to install and configure `capture-truth` for you:
+
+```text
+Let's use capture-truth from https://github.com/hilmimuktitama/capture-truth.
+
+Please inspect the repository README and setup docs, confirm this machine has Node.js 22 or newer, and configure an MCP server named capture-truth.
+
+Prefer the npm package setup:
+
+{
+  "mcpServers": {
+    "capture-truth": {
+      "command": "npx",
+      "args": ["-y", "--package=capture-truth", "capture-truth-mcp"]
+    }
+  }
+}
+
+If npm setup is unavailable, use a local checkout fallback: clone the GitHub repo, run npm install, and configure the MCP server with command node and args pointing to <repo>/src/mcp-server.js.
+
+After setup, run the matching doctor command: for npm setup, run `npx -y --package=capture-truth capture-truth doctor`; for local checkout setup, run `node bin/capture-truth.js doctor` from the cloned repo. Then smoke-test the MCP server by calling create_evidence_pack with one text source, validate_evidence_pack, and render_evidence_pack as Markdown with export_profile set to repo-safe-summary.
+
+Do not infer status, risk, ownership, or timeline truth. Only capture source-backed evidence, validation gaps, unresolved conflicts, and assumptions.
+```
+
+The agent should locate and update its own MCP configuration file according to the client it is running in. The raw config examples below are intentionally generic.
+
 ## Local Checkout
 
 From this repository:

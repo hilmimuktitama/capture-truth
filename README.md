@@ -49,6 +49,35 @@ Example: if a local note says `DEMO-100` starts on `2026-06-01` but a system rec
 
 Use this surface when benchmarking or wiring agents that should not need separate setup for capture, program status, and timeline checks.
 
+## Easy Way: Ask Your AI Agent To Set It Up
+
+If you use an MCP-capable AI agent, start by asking the agent to install and configure `capture-truth` for you:
+
+```text
+Let's use capture-truth from https://github.com/hilmimuktitama/capture-truth.
+
+Please inspect the repository README and setup docs, confirm this machine has Node.js 22 or newer, and configure an MCP server named capture-truth.
+
+Prefer the npm package setup:
+
+{
+  "mcpServers": {
+    "capture-truth": {
+      "command": "npx",
+      "args": ["-y", "--package=capture-truth", "capture-truth-mcp"]
+    }
+  }
+}
+
+If npm setup is unavailable, use a local checkout fallback: clone the GitHub repo, run npm install, and configure the MCP server with command node and args pointing to <repo>/src/mcp-server.js.
+
+After setup, run the matching doctor command: for npm setup, run `npx -y --package=capture-truth capture-truth doctor`; for local checkout setup, run `node bin/capture-truth.js doctor` from the cloned repo. Then smoke-test the MCP server by calling create_evidence_pack with one text source, validate_evidence_pack, and render_evidence_pack as Markdown with export_profile set to repo-safe-summary.
+
+Do not infer status, risk, ownership, or timeline truth. Only capture source-backed evidence, validation gaps, unresolved conflicts, and assumptions.
+```
+
+Once your agent confirms the MCP server works, give it source material and ask it to create, validate, and render an evidence pack.
+
 ## First Use
 
 ```json
@@ -69,7 +98,7 @@ Use this surface when benchmarking or wiring agents that should not need separat
 Ask your agent:
 
 ```text
-Use the capture-truth MCP server. Call create_evidence_pack with this source intake, then validate it and render the Markdown output. Do not infer status, risk, or timeline truth.
+Use the capture-truth MCP server. Call create_evidence_pack with this source intake, then validate it and render the Markdown output with export_profile set to repo-safe-summary. Do not infer status, risk, ownership, or timeline truth.
 ```
 
 ## Install
