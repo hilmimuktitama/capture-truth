@@ -1,6 +1,6 @@
 # Capture Truth
 
-Status: v0.2.1 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
+Status: v0.2.3 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
 
 `capture-truth` is a reusable evidence intake package for AI-agent TPM and operator workflows. It turns pasted text, local files, CSV/JSON exports, and read-only adapter outputs into a neutral `evidence_pack` with source snapshots, extracted claims, source refs, freshness metadata, validation gaps, unresolved conflicts, and portable renders.
 
