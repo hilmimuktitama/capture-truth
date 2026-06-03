@@ -1,5 +1,6 @@
 const DEFAULT_ASSUMPTION = "No status, risk, timeline, or truth judgment was inferred.";
 const REFINE_ASSUMPTION = "Refinement preserved source_refs unless explicitly replaced.";
+const SCHEMA_VERSION = "0.2.0";
 export const EXPORT_PROFILES = ["repo-safe-summary", "internal-evidence-pack", "raw-local-only"];
 
 const SENSITIVE_PATTERNS = [
@@ -20,9 +21,11 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
   const gaps = detectGaps(normalizedSources, claims);
   const conflicts = detectConflicts(claims, normalizedSources);
   const assumptions = [DEFAULT_ASSUMPTION];
+  const diagnostics = buildDiagnostics(normalizedSources, claims, gaps, conflicts);
 
   return {
     kind: "evidence_pack",
+    schema_version: SCHEMA_VERSION,
     version: "0.1.0",
     created_at: new Date().toISOString(),
     extraction_profile,
@@ -31,6 +34,7 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
     entities,
     gaps,
     conflicts,
+    diagnostics,
     assumptions,
     exports: {
       repo_safe_summary: renderEvidencePack(
@@ -66,7 +70,8 @@ export function validateEvidencePack(evidencePack = {}) {
     return {
       ok: false,
       gaps: [{ type: "invalid_kind", message: "Expected kind to be evidence_pack." }],
-      conflicts: []
+      conflicts: [],
+      diagnostics: buildDiagnostics([], [], [{ type: "invalid_kind", message: "Expected kind to be evidence_pack." }], [])
     };
   }
 
@@ -79,6 +84,7 @@ export function validateEvidencePack(evidencePack = {}) {
     ok: gaps.length === 0 && conflicts.length === 0,
     gaps,
     conflicts,
+    diagnostics: buildDiagnostics(sources, claims, gaps, conflicts),
     summary: {
       source_count: sources.length,
       claim_count: claims.length,
@@ -274,13 +280,7 @@ function readSourceRows(source) {
     return readJsonRows(source.content);
   }
   if (source.type === "markdown") {
-    return source.content
-      .split(/\r?\n/)
-      .map((line, index) => ({
-        text: line.trim().startsWith("#") ? "" : cleanMarkdownLine(line),
-        locator: `line:${index + 1}`
-      }))
-      .filter((row) => row.text && !row.text.match(/^[-=]{3,}$/));
+    return readMarkdownRows(source.content);
   }
   return source.content
     .split(/\r?\n/)
@@ -299,6 +299,87 @@ function readCsvRows(content) {
   });
 }
 
+function readMarkdownRows(content) {
+  const lines = content.split(/\r?\n/);
+  const rows = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    if (isMarkdownTableLine(trimmed) && isMarkdownSeparatorLine(lines[index + 1]?.trim())) {
+      const table = readMarkdownTable(lines, index);
+      rows.push(...table.rows);
+      index = table.endIndex;
+      continue;
+    }
+
+    const text = trimmed.startsWith("#") ? "" : cleanMarkdownLine(lines[index]);
+    if (text && !text.match(/^[-=]{3,}$/)) {
+      rows.push({ text, locator: `line:${index + 1}` });
+    }
+  }
+
+  return rows;
+}
+
+function readMarkdownTable(lines, startIndex) {
+  const headers = splitMarkdownTableRow(lines[startIndex]).map((header) => header.trim());
+  const rows = [];
+  let index = startIndex + 2;
+
+  while (index < lines.length && isMarkdownTableLine(lines[index].trim())) {
+    const cells = splitMarkdownTableRow(lines[index]);
+    const structured = markdownCellsToStructured(headers, cells);
+    rows.push({
+      text: structuredToClaimText(structured),
+      locator: `row:${index + 1}`,
+      structured
+    });
+    index += 1;
+  }
+
+  return { rows, endIndex: index - 1 };
+}
+
+function markdownCellsToStructured(headers, cells) {
+  const structured = {};
+  headers.forEach((header, index) => {
+    const key = normalizeStructuredKey(header);
+    const value = cells[index]?.trim();
+    if (key && value) structured[key] = value;
+  });
+  return structured;
+}
+
+function structuredToClaimText(structured = {}) {
+  const title = structured.title || structured.item || structured.task || structured.milestone || structured.name;
+  const entries = Object.entries(structured).filter(([key]) => !["title", "item", "task", "milestone", "name"].includes(key));
+  return [title, ...entries.map(([key, value]) => `${key}: ${value}`)].filter(Boolean).join("; ");
+}
+
+function normalizeStructuredKey(value) {
+  const key = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  if (["item", "task", "milestone", "name", "project", "title"].includes(key)) return "title";
+  if (["target_date", "due", "date", "when"].includes(key)) return "target";
+  return key;
+}
+
+function isMarkdownTableLine(line = "") {
+  return /^\|.*\|\s*$/.test(line);
+}
+
+function isMarkdownSeparatorLine(line = "") {
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line);
+}
+
+function splitMarkdownTableRow(line = "") {
+  return String(line)
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
 function readJsonRows(content) {
   const parsed = JSON.parse(content);
   const records = Array.isArray(parsed) ? parsed : [parsed];
@@ -310,13 +391,14 @@ function readJsonRows(content) {
 
 function rowToClaim(row, source, index, extractionProfile) {
   const text = row.text.trim();
-  return {
+  return compactObject({
     id: `${slugify(source.id)}-claim-${index + 1}`,
     text,
     classification: classifyClaim(text, extractionProfile),
+    structured: row.structured,
     source_refs: [{ source_id: source.id, locator: row.locator }],
     extracted_at: new Date().toISOString()
-  };
+  });
 }
 
 function cleanMarkdownLine(line) {
@@ -451,6 +533,78 @@ function detectGaps(sources, claims) {
   }
 
   return gaps;
+}
+
+function buildDiagnostics(sources, claims, gaps, conflicts) {
+  const qualityIssues = sourceQualityIssues(sources, claims, gaps);
+  return {
+    sources: sources.map((source) => ({
+      id: source.id,
+      type: source.type,
+      adapter: source.adapter,
+      freshness: source.freshness ?? "unknown",
+      parsed_claims: claims.filter((claim) =>
+        (claim.source_refs ?? []).some((ref) => ref.source_id === source.id || ref.sourceId === source.id)
+      ).length
+    })),
+    source_quality: {
+      ok: qualityIssues.length === 0,
+      issues: qualityIssues
+    },
+    summary: {
+      source_count: sources.length,
+      claim_count: claims.length,
+      gap_count: gaps.length,
+      conflict_count: conflicts.length
+    }
+  };
+}
+
+function sourceQualityIssues(sources, claims, gaps) {
+  const gapIssueTypes = new Set([
+    "duplicate_source_id",
+    "missing_source_identity",
+    "missing_captured_at",
+    "missing_freshness",
+    "stale_source",
+    "access_caveat",
+    "missing_source_refs"
+  ]);
+  const issues = gaps
+    .filter((gap) => gapIssueTypes.has(gap.type))
+    .map((gap) =>
+      compactObject({
+        type: gap.type,
+        source_id: gap.source_id,
+        claim_id: gap.claim_id,
+        message: gap.message
+      })
+    );
+
+  for (const source of sources) {
+    const parsedClaims = claims.filter((claim) =>
+      (claim.source_refs ?? []).some((ref) => ref.source_id === source.id || ref.sourceId === source.id)
+    ).length;
+    if (parsedClaims === 0) {
+      issues.push({
+        type: "no_claims_extracted",
+        source_id: source.id,
+        message: `Source '${source.id}' produced no claims.`
+      });
+    }
+  }
+
+  return dedupeIssues(issues);
+}
+
+function dedupeIssues(issues) {
+  const seen = new Set();
+  return issues.filter((issue) => {
+    const key = [issue.type, issue.source_id, issue.claim_id, issue.message].map((value) => String(value ?? "")).join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function checkRedaction(value) {

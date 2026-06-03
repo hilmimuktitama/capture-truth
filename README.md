@@ -10,6 +10,8 @@ It deliberately stops before status, risk, or timeline judgment. Use it to prese
 
 Repository: https://github.com/hilmimuktitama/capture-truth
 
+For general TPM truth-review workflows, prefer [`truth-tools`](https://github.com/hilmimuktitama/truth-tools) as the unified CLI/MCP entrypoint. Use `capture-truth` directly when you only need evidence intake, validation, conflict detection, and repo-safe evidence rendering.
+
 ## Mental Model
 
 `capture-truth` sits before analysis. It turns messy source material into an auditable evidence pack, then hands that pack to humans or downstream workflows for judgment.

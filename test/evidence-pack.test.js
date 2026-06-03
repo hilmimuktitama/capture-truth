@@ -24,6 +24,7 @@ test("creates an evidence pack from text and preserves source refs", () => {
   });
 
   assert.equal(pack.kind, "evidence_pack");
+  assert.equal(pack.schema_version, "0.2.0");
   assert.equal(pack.sources.length, 1);
   assert.equal(pack.sources[0].id, "status-note");
   assert.equal(pack.sources[0].path, "notes/status.txt");
@@ -33,6 +34,7 @@ test("creates an evidence pack from text and preserves source refs", () => {
   ]);
   assert.equal(pack.entities.dates.includes("2026-05-20"), true);
   assert.equal(pack.assumptions.includes("No status, risk, timeline, or truth judgment was inferred."), true);
+  assert.equal(pack.diagnostics.source_quality.ok, true);
 });
 
 test("extracts claims from markdown, csv, and json sources", () => {
@@ -68,6 +70,34 @@ test("extracts claims from markdown, csv, and json sources", () => {
   assert.equal(pack.claims.some((claim) => claim.text.includes("Confirm staging sign-off")), true);
 });
 
+test("extracts structured claims from Markdown tables with classification hints", () => {
+  const pack = createEvidencePack({
+    sources: [
+      {
+        id: "status-table",
+        type: "markdown",
+        captured_at: "2026-05-12T14:00:00Z",
+        freshness: "fresh",
+        content: [
+          "| Item | Owner | Status | Target | Notes |",
+          "| --- | --- | --- | --- | --- |",
+          "| API contract | Platform | Blocked | 2026-05-20 | Missing owner from downstream team |",
+          "| Launch decision | PM | Decision | 2026-05-22 | Go/no-go remains manual |"
+        ].join("\n")
+      }
+    ]
+  });
+
+  assert.equal(pack.claims.length, 2);
+  assert.equal(pack.claims[0].text, "API contract; owner: Platform; status: Blocked; target: 2026-05-20; notes: Missing owner from downstream team");
+  assert.equal(pack.claims[0].classification, "blocker");
+  assert.equal(pack.claims[0].structured.title, "API contract");
+  assert.equal(pack.claims[0].structured.owner, "Platform");
+  assert.equal(pack.claims[0].structured.target, "2026-05-20");
+  assert.deepEqual(pack.claims[0].source_refs, [{ source_id: "status-table", locator: "row:3" }]);
+  assert.equal(pack.diagnostics.sources[0].parsed_claims, 2);
+});
+
 test("validates missing metadata, duplicate sources, stale freshness, and unresolved conflicts", () => {
   const pack = createEvidencePack({
     sources: [
@@ -89,6 +119,8 @@ test("validates missing metadata, duplicate sources, stale freshness, and unreso
   const validation = validateEvidencePack(pack);
 
   assert.equal(validation.ok, false);
+  assert.equal(validation.diagnostics.source_quality.ok, false);
+  assert.equal(validation.diagnostics.source_quality.issues.some((issue) => issue.type === "duplicate_source_id"), true);
   assert.equal(validation.gaps.some((gap) => gap.type === "duplicate_source_id"), true);
   assert.equal(validation.gaps.some((gap) => gap.type === "missing_captured_at"), true);
   assert.equal(validation.gaps.some((gap) => gap.type === "missing_freshness"), true);
