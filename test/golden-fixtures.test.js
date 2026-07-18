@@ -10,7 +10,7 @@ test("golden mixed intake fixture creates a valid neutral evidence pack", () => 
   const validation = validateEvidencePack(pack);
 
   assert.equal(pack.sources.length, 3);
-  assert.equal(pack.claims.length, 8);
+  assert.equal(pack.claims.length, 9);
   assert.equal(pack.conflicts.length, 0);
   assert.equal(validation.ok, true);
   assert.equal(pack.claims.some((claim) => claim.text.includes("launch gate remains manual")), true);

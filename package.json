@@ -1,6 +1,6 @@
 {
   "name": "capture-truth",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Local-first truth-tools package for capture, program reconciliation, timeline unknowns, and provenance-preserving TPM evidence packs.",
   "author": "hilmimuktitama",
   "license": "MIT",
@@ -21,7 +21,7 @@
   },
   "files": [
     "bin",
-    "docs/MCP-SETUP.md",
+    "docs",
     "src",
     "examples",
     "references",
@@ -45,7 +45,7 @@
     "pack:dry-run": "npm pack --dry-run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.5"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "engines": {
     "node": ">=22"

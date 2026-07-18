@@ -1,35 +1,29 @@
 import { isTextResult, runTruthTool } from "./truth-tools.js";
-
-const SOURCE_SCHEMA = {
-  type: "object",
-  required: ["content"],
-  additionalProperties: true,
-  properties: {
-    id: { type: "string" },
-    type: { type: "string", enum: ["text", "markdown", "csv", "json"] },
-    path: { type: "string" },
-    url: { type: "string" },
-    key: { type: "string" },
-    adapter: { type: "string" },
-    captured_at: { type: "string" },
-    freshness: { type: "string" },
-    access_caveats: { type: "array", items: { type: "string" } },
-    content: {
-      oneOf: [{ type: "string" }, { type: "object" }, { type: "array" }]
-    }
-  }
-};
-
-const EVIDENCE_PACK_SCHEMA = {
-  type: "object",
-  required: ["kind", "sources", "claims"],
-  additionalProperties: true
-};
+import { EVIDENCE_PACK_SCHEMA, SOURCE_SCHEMA } from "./mcp-tools.js";
 
 const TIMELINE_SCHEMA = {
   type: "object",
   required: ["kind", "items"],
-  additionalProperties: true
+  additionalProperties: true,
+  properties: {
+    kind: { type: "string", enum: ["timeline"] },
+    items: {
+      type: "array",
+      maxItems: 10000,
+      items: {
+        type: "object",
+        required: ["id", "label", "date_status", "blocks_next_milestone"],
+        additionalProperties: true,
+        properties: {
+          id: { type: "string", minLength: 1 },
+          label: { type: "string", minLength: 1 },
+          date: { type: ["string", "null"] },
+          date_status: { type: "string", enum: ["exact", "range", "earliest", "tbc", "conflicting"] },
+          blocks_next_milestone: { enum: [true, false, "unknown"] }
+        }
+      }
+    }
+  }
 };
 
 export function listTruthTools() {
@@ -42,7 +36,7 @@ export function listTruthTools() {
         required: ["sources"],
         additionalProperties: false,
         properties: {
-          sources: { type: "array", minItems: 1, items: SOURCE_SCHEMA },
+          sources: { type: "array", minItems: 1, maxItems: 1000, items: SOURCE_SCHEMA },
           adapters: { type: "array", items: { type: "object", additionalProperties: true } },
           extraction_profile: { type: "string", default: "general" }
         }
@@ -78,7 +72,7 @@ export function listTruthTools() {
     },
     {
       name: "program.reconcile",
-      description: "Create a standard program-status object from captured evidence.",
+      description: "Create a program-status candidate set; only explicitly reviewed claims become confirmed facts.",
       inputSchema: {
         type: "object",
         required: ["evidence_pack"],
@@ -94,7 +88,7 @@ export function listTruthTools() {
         required: ["items"],
         additionalProperties: false,
         properties: {
-          items: { type: "array", items: { type: "object", additionalProperties: true } },
+          items: { type: "array", maxItems: 10000, items: { type: "object", additionalProperties: true } },
           source_refs: { type: "array", items: { type: "object", additionalProperties: true } }
         }
       }

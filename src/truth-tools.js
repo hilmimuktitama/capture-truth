@@ -44,7 +44,7 @@ export function isTextResult(command) {
 function normalizeDoctorReport(report, input = {}) {
   return {
     kind: "truth_tools_doctor",
-    version: "0.1.0",
+    version: "0.3.0",
     scope: input.all ? "all" : "default",
     ...report
   };

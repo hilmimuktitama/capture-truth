@@ -83,7 +83,7 @@ function checkRender() {
         type: "text",
         captured_at: "2026-05-14T00:00:00Z",
         freshness: "fresh",
-        content: "Fixture credential api_key=REDACTED_EXAMPLE should not render in repo-safe output."
+        content: "Fixture credential api_key=doctor-secret-abc123 should not render in repo-safe output."
       }
     ]
   });

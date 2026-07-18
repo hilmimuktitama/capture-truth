@@ -2,13 +2,15 @@
 
 > Work in progress: this repository is still experimental and the public CLI/MCP contract may change while the truth workflow is being validated.
 
-Status: v0.2.3 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
+Status: v0.3.0 local-first implementation. MIT licensed. Requires Node.js 22 or newer.
 
 `capture-truth` is a reusable evidence intake package for AI-agent TPM and operator workflows. It turns pasted text, local files, CSV/JSON exports, and read-only adapter outputs into a neutral `evidence_pack` with source snapshots, extracted claims, source refs, freshness metadata, validation gaps, unresolved conflicts, and portable renders.
 
 It deliberately stops before status, risk, or timeline judgment. Use it to preserve what was captured and where it came from, then hand the pack to downstream workflows such as `program-truth` or `timeline-truth`.
 
 Repository: https://github.com/hilmimuktitama/capture-truth
+
+The normative definitions of source, evidence item, candidate claim, reviewed fact, gap, conflict, and export profile are in [docs/CONTRACT.md](docs/CONTRACT.md).
 
 For general TPM truth-review workflows, prefer [`truth-tools`](https://github.com/hilmimuktitama/truth-tools) as the unified CLI/MCP entrypoint. Use `capture-truth` directly when you only need evidence intake, validation, conflict detection, and repo-safe evidence rendering.
 
@@ -20,7 +22,7 @@ For general TPM truth-review workflows, prefer [`truth-tools`](https://github.co
 flowchart LR
   A["Raw inputs<br/>Notes, files, CSV, JSON, compact system records"] --> B["capture-truth create"]
   B --> C["Normalize sources<br/>id, type, adapter,<br/>captured_at, freshness"]
-  C --> D["Extract atomic claims"]
+  C --> D["Preserve evidence items<br/>then extract candidate claims"]
   D --> E["Attach source_refs<br/>source id + line, row, or object locator"]
   E --> F["Validate evidence pack"]
   F --> G{"Validation result"}
@@ -33,7 +35,7 @@ flowchart LR
   K --> L["Downstream review<br/>program-truth, timeline-truth,<br/>or human judgment"]
 ```
 
-The important boundary: `capture-truth` preserves evidence and source quality. It does not decide final status, risk, ownership, timeline, or program truth.
+The important boundary: `capture-truth` preserves evidence and source quality. Extracted claims are candidates, not verified truth. It does not decide final status, risk, ownership, timeline, or program truth. `program.reconcile` only places explicitly reviewed claims in `confirmed_facts`; everything else remains a candidate, blocker, risk, unknown, or conflict.
 
 ## Why It Helps
 
@@ -112,8 +114,8 @@ Local checkout:
 ```bash
 npm install
 npm test
-capture-truth doctor
-truth-tools doctor --all
+node bin/capture-truth.js doctor
+node bin/truth-tools.js doctor --all
 node src/mcp-server.js
 node src/truth-mcp-server.js
 ```
@@ -171,7 +173,7 @@ truth-tools benchmark.fixture --json-out < benchmark-case.json
 - `capture.create`: compile sources into neutral evidence pack JSON.
 - `capture.validate`: validate captured evidence for metadata gaps and source conflicts.
 - `capture.render`: render evidence with repo-safe, internal, or raw-local export profiles.
-- `program.reconcile`: emit a standard program status object with confirmed facts, blockers, risks, unknowns, conflicts, assumptions, and write-back recommendations.
+- `program.reconcile`: emit candidate facts, explicitly reviewed confirmed facts, blockers, risks, unknowns, conflicts, assumptions, and write-back recommendations.
 - `timeline.create`: create timelines with explicit `date_status` values.
 - `timeline.validate`: validate timeline unknowns and milestone-blocking fields.
 - `timeline.render`: render timelines without inventing dates for TBC or conflicting fields.
@@ -182,11 +184,11 @@ truth-tools benchmark.fixture --json-out < benchmark-case.json
 
 `capture-truth` supports explicit export profiles when rendering evidence packs:
 
-- `repo-safe-summary`: Markdown summary for committing to TPM repos. It omits raw source bodies and reports redaction warnings when source material contains common credential or sensitive-data markers.
-- `internal-evidence-pack`: structured evidence output with raw `content` fields replaced by `content_redacted: true`.
+- `repo-safe-summary`: allowlisted Markdown or JSON metadata for committing to TPM repos. It omits source bodies, claims, evidence items, and entities; potentially sensitive conflict and gap strings are redacted.
+- `internal-evidence-pack`: structured evidence output with raw `content` and cached exports removed. Sensitive strings in derived claims, conflicts, metadata, and entities are replaced with `[redacted]`.
 - `raw-local-only`: full local render. Do not commit raw Jira, Confluence, customer, credential, or private operational data.
 
-Use `repo-safe-summary` as the default for repo artifacts.
+Use `repo-safe-summary` as the default for repo artifacts. Redaction is defense in depth, not a substitute for human review; pattern-based detection cannot identify every private value.
 
 ## Conflict Object
 

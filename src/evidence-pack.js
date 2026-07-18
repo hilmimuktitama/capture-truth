@@ -1,24 +1,44 @@
+import { createHash } from "node:crypto";
+
 const DEFAULT_ASSUMPTION = "No status, risk, timeline, or truth judgment was inferred.";
 const REFINE_ASSUMPTION = "Refinement preserved source_refs unless explicitly replaced.";
-const SCHEMA_VERSION = "0.2.0";
+const SCHEMA_VERSION = "0.3.0";
+const PACK_VERSION = "0.3.0";
+const FRESHNESS_VALUES = new Set(["fresh", "captured", "stale", "unknown", "fixture"]);
+const MAX_SOURCES = 1000;
+const MAX_SOURCE_BYTES = 5_000_000;
 export const EXPORT_PROFILES = ["repo-safe-summary", "internal-evidence-pack", "raw-local-only"];
 
 const SENSITIVE_PATTERNS = [
   { name: "authorization_header", pattern: /\bAuthorization\s*:\s*(?:Basic|Bearer)\s+[A-Za-z0-9._~+/=-]+/i },
   { name: "secret_assignment", pattern: /\b(?:secret|token|password|api[_-]?key)\s*[:=]\s*\S+/i },
+  { name: "cloud_access_key", pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/ },
+  { name: "provider_token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9_-]{20,})\b/i },
+  { name: "jwt", pattern: /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/ },
   { name: "private_key", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/i },
-  { name: "customer_marker", pattern: /\b(?:customer|client)\s+(?:token|secret|credential|data)\b/i }
+  { name: "customer_marker", pattern: /\b(?:customer|client)\s+(?:token|secret|credential|data)\b/i },
+  { name: "email_address", pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i }
 ];
 
-export function createEvidencePack({ sources, adapters = [], extraction_profile = "general" } = {}) {
+export function createEvidencePack({
+  sources,
+  adapters = [],
+  extraction_profile = "general",
+  now = () => new Date()
+} = {}) {
   if (!Array.isArray(sources) || sources.length === 0) {
     throw new Error("create_evidence_pack requires at least one source.");
   }
+  if (sources.length > MAX_SOURCES) {
+    throw new Error(`create_evidence_pack accepts at most ${MAX_SOURCES} sources.`);
+  }
 
   const normalizedSources = sources.map((source, index) => normalizeSource(source, index, adapters));
-  const claims = normalizedSources.flatMap((source) => extractClaims(source, extraction_profile));
+  const extractedAt = normalizeNow(now);
+  const evidenceItems = normalizedSources.flatMap((source) => extractEvidenceItems(source));
+  const claims = evidenceItems.flatMap((item) => evidenceItemToClaims(item, extraction_profile, extractedAt));
   const entities = extractEntities(claims);
-  const gaps = detectGaps(normalizedSources, claims);
+  const gaps = detectGaps(normalizedSources, claims, { now: extractedAt, schemaVersion: SCHEMA_VERSION });
   const conflicts = detectConflicts(claims, normalizedSources);
   const assumptions = [DEFAULT_ASSUMPTION];
   const diagnostics = buildDiagnostics(normalizedSources, claims, gaps, conflicts);
@@ -26,10 +46,11 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
   return {
     kind: "evidence_pack",
     schema_version: SCHEMA_VERSION,
-    version: "0.1.0",
-    created_at: new Date().toISOString(),
+    version: PACK_VERSION,
+    created_at: extractedAt,
     extraction_profile,
     sources: normalizedSources,
+    evidence_items: evidenceItems,
     claims,
     entities,
     gaps,
@@ -49,23 +70,12 @@ export function createEvidencePack({ sources, adapters = [], extraction_profile 
         },
         { format: "markdown", export_profile: "repo-safe-summary" }
       ),
-      markdown: renderEvidencePack(
-        {
-          kind: "evidence_pack",
-          sources: normalizedSources,
-          claims,
-          entities,
-          gaps,
-          conflicts,
-          assumptions
-        },
-        { format: "markdown" }
-      )
+      generated_at: extractedAt
     }
   };
 }
 
-export function validateEvidencePack(evidencePack = {}) {
+export function validateEvidencePack(evidencePack = {}, { now = () => new Date() } = {}) {
   if (evidencePack.kind !== "evidence_pack") {
     return {
       ok: false,
@@ -77,7 +87,7 @@ export function validateEvidencePack(evidencePack = {}) {
 
   const sources = Array.isArray(evidencePack.sources) ? evidencePack.sources : [];
   const claims = Array.isArray(evidencePack.claims) ? evidencePack.claims : [];
-  const gaps = detectGaps(sources, claims);
+  const gaps = detectGaps(sources, claims, { now: normalizeNow(now), schemaVersion: evidencePack.schema_version });
   const conflicts = detectConflicts(claims, sources);
 
   return {
@@ -198,16 +208,25 @@ export function refineEvidencePack(evidencePack = {}, { updates = [] } = {}) {
   const nextPack = {
     ...evidencePack,
     claims,
+    entities: extractEntities(claims),
     assumptions: unique([...(evidencePack.assumptions ?? []), REFINE_ASSUMPTION])
   };
-
-  return {
+  const gaps = detectGaps(nextPack.sources ?? [], claims, { schemaVersion: nextPack.schema_version });
+  const conflicts = detectConflicts(claims, nextPack.sources ?? []);
+  const complete = {
     ...nextPack,
-    gaps: detectGaps(nextPack.sources ?? [], claims),
-    conflicts: detectConflicts(claims, nextPack.sources ?? []),
+    gaps,
+    conflicts,
+    diagnostics: buildDiagnostics(nextPack.sources ?? [], claims, gaps, conflicts)
+  };
+  return {
+    ...complete,
     exports: {
-      ...(evidencePack.exports ?? {}),
-      markdown: renderEvidencePack(nextPack, { format: "markdown" })
+      repo_safe_summary: renderEvidencePack(complete, {
+        format: "markdown",
+        export_profile: "repo-safe-summary"
+      }),
+      generated_at: complete.created_at
     }
   };
 }
@@ -223,6 +242,9 @@ function normalizeSource(source, index, adapters) {
   const adapter = source.adapter ?? findAdapterType(source, adapters) ?? "direct";
   const id = source.id ?? source.key ?? source.path ?? source.url ?? `source-${index + 1}`;
   const rawContent = normalizeContent(source.content);
+  if (Buffer.byteLength(rawContent, "utf8") > MAX_SOURCE_BYTES) {
+    throw new Error(`Source at index ${index} exceeds the ${MAX_SOURCE_BYTES}-byte limit.`);
+  }
 
   return {
     id: String(id),
@@ -264,12 +286,50 @@ function normalizeContent(content) {
   return JSON.stringify(content, null, 2);
 }
 
-function extractClaims(source, extractionProfile) {
+function extractEvidenceItems(source) {
   const rows = readSourceRows(source);
 
   return rows
-    .map((row, index) => rowToClaim(row, source, index, extractionProfile))
-    .filter((claim) => claim.text.length > 0);
+    .map((row, index) => compactObject({
+      id: `${slugify(source.id)}-item-${index + 1}`,
+      text: row.text.trim(),
+      structured: row.structured,
+      source_ref: { source_id: source.id, locator: row.locator }
+    }))
+    .filter((item) => item.text.length > 0);
+}
+
+function evidenceItemToClaims(item, extractionProfile, extractedAt) {
+  if (!isClaimCandidate(item)) return [];
+  return splitAtomicStatements(item.text).map((text, index) => compactObject({
+    id: `${item.id}-claim-${index + 1}`,
+    text,
+    classification: classifyClaim(text, extractionProfile),
+    polarity: detectPolarity(text),
+    structured: item.structured,
+    source_refs: [{
+      ...item.source_ref,
+      locator: index === 0 ? item.source_ref.locator : `${item.source_ref.locator}#statement:${index + 1}`
+    }],
+    extracted_at: extractedAt
+  }));
+}
+
+function isClaimCandidate(item) {
+  const text = item.text.trim();
+  if (/\b(?:Jira issue|Confluence page) compact intake$/i.test(text)) return false;
+  if (/^(?:key|id|space|version|updated_at|url|assignee|parent):/i.test(text)) return false;
+  if (!item.structured && !/[.:=!?]/.test(text) && text.split(/\s+/).length <= 4) return false;
+  return true;
+}
+
+function splitAtomicStatements(text) {
+  const value = String(text).trim();
+  if (!value) return [];
+  return value
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
 }
 
 function readSourceRows(source) {
@@ -289,13 +349,13 @@ function readSourceRows(source) {
 }
 
 function readCsvRows(content) {
-  const lines = content.split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length === 0) return [];
-  const headers = splitCsvLine(lines[0]).map((header) => header.trim());
-  return lines.slice(1).map((line, index) => {
-    const values = splitCsvLine(line);
+  const records = parseCsvRecords(content);
+  if (records.length === 0) return [];
+  const headers = records[0].values.map((header) => header.trim());
+  return records.slice(1).map((record) => {
+    const values = record.values;
     const parts = headers.map((header, valueIndex) => `${header}: ${values[valueIndex] ?? ""}`);
-    return { text: parts.join("; "), locator: `row:${index + 2}` };
+    return { text: parts.join("; "), locator: `row:${record.startLine}` };
   });
 }
 
@@ -389,18 +449,6 @@ function readJsonRows(content) {
   }));
 }
 
-function rowToClaim(row, source, index, extractionProfile) {
-  const text = row.text.trim();
-  return compactObject({
-    id: `${slugify(source.id)}-claim-${index + 1}`,
-    text,
-    classification: classifyClaim(text, extractionProfile),
-    structured: row.structured,
-    source_refs: [{ source_id: source.id, locator: row.locator }],
-    extracted_at: new Date().toISOString()
-  });
-}
-
 function cleanMarkdownLine(line) {
   return line
     .trim()
@@ -432,37 +480,55 @@ function formatJsonValue(value) {
   return String(value ?? "");
 }
 
-function splitCsvLine(line) {
-  const values = [];
-  let current = "";
+function parseCsvRecords(content) {
+  const records = [];
+  let values = [];
+  let field = "";
   let quoted = false;
+  let line = 1;
+  let startLine = 1;
 
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-    if (char === '"' && next === '"') {
-      current += '"';
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      field += '"';
       index += 1;
     } else if (char === '"') {
       quoted = !quoted;
     } else if (char === "," && !quoted) {
-      values.push(current.trim());
-      current = "";
+      values.push(field.trim());
+      field = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && next === "\n") index += 1;
+      values.push(field.trim());
+      if (values.some((value) => value.length > 0)) records.push({ values, startLine });
+      values = [];
+      field = "";
+      line += 1;
+      startLine = line;
     } else {
-      current += char;
+      field += char;
+      if (char === "\n") line += 1;
     }
   }
-  values.push(current.trim());
-  return values;
+  values.push(field.trim());
+  if (values.some((value) => value.length > 0)) records.push({ values, startLine });
+  if (quoted) throw new Error("CSV source contains an unterminated quoted field.");
+  return records;
 }
 
 function classifyClaim(text) {
   const lower = text.toLowerCase();
-  if (lower.includes("blocked") || lower.includes("blocker")) return "blocker";
-  if (lower.includes("risk")) return "risk";
-  if (lower.includes("decision")) return "decision";
-  if (lower.includes("action") || lower.includes("todo")) return "action";
+  if (/\b(blocked|blocker)\b/.test(lower) && detectPolarity(text) !== "negative") return "blocker";
+  if (/\brisks?\b/.test(lower)) return "risk";
+  if (/\bdecision\b/.test(lower)) return "decision";
+  if (/\b(action|todo)\b/.test(lower)) return "action";
   return "observation";
+}
+
+function detectPolarity(text) {
+  return /\b(?:not|never|no longer|isn't|aren't|wasn't|weren't)\b/i.test(text) ? "negative" : "positive";
 }
 
 function extractEntities(claims) {
@@ -475,9 +541,19 @@ function extractEntities(claims) {
   };
 }
 
-function detectGaps(sources, claims) {
+function detectGaps(sources, claims, { now = new Date().toISOString(), schemaVersion = SCHEMA_VERSION } = {}) {
   const gaps = [];
   const seen = new Set();
+  const sourceIds = new Set(sources.map((source) => source.id));
+  const claimIds = new Set();
+  const nowMs = Date.parse(now);
+
+  if (schemaVersion && schemaVersion !== SCHEMA_VERSION) {
+    gaps.push({
+      type: "unsupported_schema_version",
+      message: `Expected schema_version '${SCHEMA_VERSION}', received '${schemaVersion}'.`
+    });
+  }
 
   for (const source of sources) {
     if (seen.has(source.id)) {
@@ -498,12 +574,30 @@ function detectGaps(sources, claims) {
         source_id: source.id,
         message: `Source '${source.id}' is missing captured_at.`
       });
+    } else if (!isIsoTimestamp(source.captured_at)) {
+      gaps.push({
+        type: "invalid_captured_at",
+        source_id: source.id,
+        message: `Source '${source.id}' has an invalid captured_at timestamp.`
+      });
+    } else if (Number.isFinite(nowMs) && Date.parse(source.captured_at) > nowMs + 5 * 60 * 1000) {
+      gaps.push({
+        type: "future_captured_at",
+        source_id: source.id,
+        message: `Source '${source.id}' has a captured_at timestamp in the future.`
+      });
     }
     if (!source.freshness) {
       gaps.push({
         type: "missing_freshness",
         source_id: source.id,
         message: `Source '${source.id}' is missing freshness.`
+      });
+    } else if (!FRESHNESS_VALUES.has(source.freshness)) {
+      gaps.push({
+        type: "invalid_freshness",
+        source_id: source.id,
+        message: `Source '${source.id}' has unsupported freshness '${source.freshness}'.`
       });
     }
     if (source.freshness === "stale") {
@@ -523,12 +617,41 @@ function detectGaps(sources, claims) {
   }
 
   for (const claim of claims) {
+    if (!claim.id) {
+      gaps.push({ type: "missing_claim_id", message: "A claim is missing a stable id." });
+    } else if (claimIds.has(claim.id)) {
+      gaps.push({ type: "duplicate_claim_id", claim_id: claim.id, message: `Claim id '${claim.id}' appears more than once.` });
+    }
+    claimIds.add(claim.id);
+    if (typeof claim.text !== "string" || !claim.text.trim()) {
+      gaps.push({ type: "missing_claim_text", claim_id: claim.id, message: `Claim '${claim.id ?? "<missing>"}' has no text.` });
+    }
     if (!Array.isArray(claim.source_refs) || claim.source_refs.length === 0) {
       gaps.push({
         type: "missing_source_refs",
         claim_id: claim.id,
         message: `Claim '${claim.id}' is missing source_refs.`
       });
+      continue;
+    }
+    for (const ref of claim.source_refs) {
+      const sourceId = ref.source_id ?? ref.sourceId;
+      if (!sourceId || !sourceIds.has(sourceId)) {
+        gaps.push({
+          type: "dangling_source_ref",
+          claim_id: claim.id,
+          source_id: sourceId,
+          message: `Claim '${claim.id}' references an unknown source '${sourceId ?? "<missing>"}'.`
+        });
+      }
+      if (!ref.locator) {
+        gaps.push({
+          type: "missing_source_locator",
+          claim_id: claim.id,
+          source_id: sourceId,
+          message: `Claim '${claim.id}' has a source ref without a locator.`
+        });
+      }
     }
   }
 
@@ -568,7 +691,16 @@ function sourceQualityIssues(sources, claims, gaps) {
     "missing_freshness",
     "stale_source",
     "access_caveat",
-    "missing_source_refs"
+    "missing_source_refs",
+    "invalid_captured_at",
+    "future_captured_at",
+    "invalid_freshness",
+    "missing_claim_id",
+    "duplicate_claim_id",
+    "missing_claim_text",
+    "dangling_source_ref",
+    "missing_source_locator",
+    "unsupported_schema_version"
   ]);
   const issues = gaps
     .filter((gap) => gapIssueTypes.has(gap.type))
@@ -633,10 +765,13 @@ function renderEvidencePackForProfile(evidencePack, { format, export_profile }) 
   }
 
   if (export_profile === "internal-evidence-pack") {
-    const redacted = cloneWithoutRawContent(evidencePack);
+    const redacted = sanitizeEvidencePack(evidencePack, { includeClaims: true });
     return format === "json" ? JSON.stringify(redacted, null, 2) : renderRepoSafeSummary(redacted, export_profile);
   }
 
+  if (format === "json") {
+    return JSON.stringify(sanitizeEvidencePack(evidencePack, { includeClaims: false }), null, 2);
+  }
   return renderRepoSafeSummary(evidencePack, export_profile);
 }
 
@@ -661,8 +796,8 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
   } else {
     for (const source of sources) {
       lines.push(
-        `- ${source.id} (${source.type ?? "unknown"}, adapter: ${source.adapter ?? "unknown"}) - captured: ${
-          source.captured_at ?? "unknown"
+        `- ${sanitizeForExport(source.id)} (${sanitizeForExport(source.type ?? "unknown")}, adapter: ${sanitizeForExport(source.adapter ?? "unknown")}) - captured: ${
+          sanitizeForExport(source.captured_at ?? "unknown")
         }, freshness: ${source.freshness ?? "unknown"}`
       );
     }
@@ -673,7 +808,7 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
     lines.push("- No validation gaps detected.");
   } else {
     for (const gap of gaps) {
-      lines.push(`- ${gap.type}: ${gap.message}`);
+      lines.push(`- ${sanitizeForExport(gap.type)}: ${sanitizeForExport(gap.message)}`);
     }
   }
 
@@ -683,13 +818,13 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
   } else {
     for (const conflict of conflicts) {
       if (conflict.source_a && conflict.source_b) {
-        lines.push(`- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"}`);
+        lines.push(`- ${sanitizeForExport(conflict.conflict_type ?? conflict.type)}: ${sanitizeForExport(conflict.claim ?? "Unspecified conflict")}`);
         lines.push(`  - ${renderRepoSafeConflictSource(conflict.source_a)}`);
         lines.push(`  - ${renderRepoSafeConflictSource(conflict.source_b)}`);
         lines.push(`  - Action: ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`);
       } else {
         lines.push(
-          `- ${conflict.conflict_type ?? conflict.type}: ${conflict.claim ?? "Unspecified conflict"} - ${conflict.recommended_owner_action ?? "Owner follow-up needed."}`
+          `- ${sanitizeForExport(conflict.conflict_type ?? conflict.type)}: ${sanitizeForExport(conflict.claim ?? "Unspecified conflict")} - ${sanitizeForExport(conflict.recommended_owner_action ?? "Owner follow-up needed.")}`
         );
       }
     }
@@ -698,7 +833,7 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
   if (assumptions.length > 0) {
     lines.push("", "## Assumptions");
     for (const assumption of assumptions) {
-      lines.push(`- ${assumption}`);
+      lines.push(`- ${sanitizeForExport(assumption)}`);
     }
   }
 
@@ -713,7 +848,7 @@ function renderRepoSafeSummary(evidencePack = {}, exportProfile) {
 }
 
 function renderRepoSafeConflictSource(source = {}) {
-  const system = source.system ?? "unknown";
+  const system = sanitizeForExport(source.system ?? "unknown");
   const value = renderRepoSafeConflictValue(source.value);
   const capturedAt = source.captured_at ?? "unknown";
   const freshness = source.freshness ?? "unknown";
@@ -726,66 +861,98 @@ function renderRepoSafeConflictValue(value) {
   return checkRedaction(text).ok ? text : "[redacted]";
 }
 
-function cloneWithoutRawContent(value) {
-  if (Array.isArray(value)) return value.map(cloneWithoutRawContent);
-  if (!value || typeof value !== "object") return value;
-
-  const next = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === "content") {
-      next.content_redacted = true;
-      continue;
-    }
-    next[key] = cloneWithoutRawContent(entry);
+function sanitizeEvidencePack(evidencePack, { includeClaims }) {
+  const sanitized = sanitizeValue(evidencePack, new Set(["content", "exports"]));
+  sanitized.sources = (sanitized.sources ?? []).map((source) => ({ ...source, content_redacted: true }));
+  if (!includeClaims) {
+    delete sanitized.claims;
+    delete sanitized.evidence_items;
+    delete sanitized.entities;
   }
-  return next;
+  return sanitized;
+}
+
+function sanitizeValue(value, omittedKeys = new Set()) {
+  if (typeof value === "string") return sanitizeForExport(value);
+  if (Array.isArray(value)) return value.map((entry) => sanitizeValue(entry, omittedKeys));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !omittedKeys.has(key))
+      .map(([key, entry]) => [key, sanitizeValue(entry, omittedKeys)])
+  );
+}
+
+function sanitizeForExport(value) {
+  const text = String(value);
+  return checkRedaction(text).ok ? text.replace(/[\r\n]+/g, " ") : "[redacted]";
 }
 
 function detectConflicts(claims, sources = []) {
   const conflicts = [];
   const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const dateClaims = new Map();
+  const polarityClaims = new Map();
 
-  for (let leftIndex = 0; leftIndex < claims.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < claims.length; rightIndex += 1) {
-      const left = claims[leftIndex];
-      const right = claims[rightIndex];
-      const dateConflict = detectDateConflict(left, right, sourceById);
-      if (dateConflict) {
-        conflicts.push(dateConflict);
-        continue;
-      }
-
-      if (isNegatedPair(left.text, right.text)) {
+  for (const claim of claims) {
+    for (const ticket of extractTickets(claim.text)) {
+      const date = extractDates(claim.text)[0];
+      if (!date) continue;
+      const key = `${ticket}|${datePredicateSignature(claim.text)}`;
+      const previous = dateClaims.get(key);
+      if (previous && previous.date !== date) {
         conflicts.push(makeConflict({
-          claim: describeNegationClaim(left.text, right.text),
-          sourceA: sourceRefToConflictSource(left, sourceById),
-          sourceB: sourceRefToConflictSource(right, sourceById),
-          conflictType: "claim_disagreement"
+          claim: `${ticket} date`,
+          sourceA: sourceRefToConflictSource(previous.claim, sourceById, previous.date),
+          sourceB: sourceRefToConflictSource(claim, sourceById, date),
+          conflictType: "date_mismatch"
         }));
+      } else if (!previous) {
+        dateClaims.set(key, { claim, date });
       }
+    }
+
+    const normalized = normalizeConflictText(claim.text);
+    const key = stripNegation(normalized);
+    const polarity = detectPolarity(claim.text);
+    const previous = polarityClaims.get(key);
+    if (previous && previous.polarity !== polarity && normalized !== previous.normalized) {
+      conflicts.push(makeConflict({
+        claim: describeNegationClaim(previous.claim.text, claim.text),
+        sourceA: sourceRefToConflictSource(previous.claim, sourceById),
+        sourceB: sourceRefToConflictSource(claim, sourceById),
+        conflictType: "claim_disagreement"
+      }));
+    } else if (!previous) {
+      polarityClaims.set(key, { claim, polarity, normalized });
     }
   }
 
-  return conflicts;
+  return dedupeConflicts(conflicts);
 }
 
-function detectDateConflict(left, right, sourceById) {
-  const leftTickets = extractTickets(left.text);
-  const rightTickets = extractTickets(right.text);
-  const sharedTicket = leftTickets.find((ticket) => rightTickets.includes(ticket));
-  if (!sharedTicket) return null;
+function datePredicateSignature(text) {
+  return normalizeConflictText(text)
+    .replace(/^(?:summary|title):?\s+/, "")
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, "<date>")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const leftDates = extractDates(left.text);
-  const rightDates = extractDates(right.text);
-  const leftDate = leftDates[0];
-  const rightDate = rightDates[0];
-  if (!leftDate || !rightDate || leftDate === rightDate) return null;
-
-  return makeConflict({
-    claim: `${sharedTicket} date`,
-    sourceA: sourceRefToConflictSource(left, sourceById, leftDate),
-    sourceB: sourceRefToConflictSource(right, sourceById, rightDate),
-    conflictType: "date_mismatch"
+function dedupeConflicts(conflicts) {
+  const seen = new Set();
+  return conflicts.filter((conflict) => {
+    const key = [
+      conflict.conflict_type,
+      conflict.claim,
+      conflict.source_a?.system,
+      conflict.source_a?.value,
+      conflict.source_b?.system,
+      conflict.source_b?.value
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -828,16 +995,6 @@ function describeNegationClaim(leftText, rightText) {
   return stripNegation(normalizeConflictText(text));
 }
 
-function isNegatedPair(leftText, rightText) {
-  const left = normalizeConflictText(leftText);
-  const right = normalizeConflictText(rightText);
-  if (left === right) return false;
-
-  const leftStripped = stripNegation(left);
-  const rightStripped = stripNegation(right);
-  return leftStripped === rightStripped && left !== right;
-}
-
 function normalizeConflictText(text) {
   return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim();
 }
@@ -877,10 +1034,17 @@ function capitalize(value) {
 }
 
 function hashContent(content) {
-  let hash = 0;
-  for (let index = 0; index < content.length; index += 1) {
-    hash = (hash << 5) - hash + content.charCodeAt(index);
-    hash |= 0;
-  }
-  return `h${Math.abs(hash).toString(16)}`;
+  return `sha256:${createHash("sha256").update(content, "utf8").digest("hex")}`;
+}
+
+function isIsoTimestamp(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
+function normalizeNow(now) {
+  const value = typeof now === "function" ? now() : now;
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("now must produce a valid date.");
+  return date.toISOString();
 }

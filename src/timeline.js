@@ -8,7 +8,7 @@ export function createTimeline({ items = [], source_refs = [] } = {}) {
 
   return {
     kind: "timeline",
-    version: "0.1.0",
+    version: "0.3.0",
     created_at: new Date().toISOString(),
     source_refs,
     items: items.map(normalizeTimelineItem)
@@ -46,6 +46,32 @@ export function validateTimeline(timeline = {}) {
         message: `Timeline item '${item.id}' is exact but has no date.`
       });
     }
+    if (item.date && !isIsoDate(item.date)) {
+      gaps.push({
+        type: "invalid_date",
+        item_id: item.id,
+        message: `Timeline item '${item.id}' has invalid date '${item.date}'.`
+      });
+    }
+    if (item.date_status === "range" && !isValidDateRange(item.date_range)) {
+      gaps.push({
+        type: "invalid_date_range",
+        item_id: item.id,
+        message: `Timeline item '${item.id}' is a range but does not have a valid start and end date.`
+      });
+    }
+    if (item.date_status === "conflicting" && item.alternate_dates.length === 0) {
+      gaps.push({
+        type: "missing_alternate_dates",
+        item_id: item.id,
+        message: `Timeline item '${item.id}' is conflicting but has no alternate_dates.`
+      });
+    }
+    for (const date of item.alternate_dates) {
+      if (!isIsoDate(date)) {
+        gaps.push({ type: "invalid_alternate_date", item_id: item.id, message: `Timeline item '${item.id}' has invalid alternate date '${date}'.` });
+      }
+    }
   }
 
   return {
@@ -56,6 +82,20 @@ export function validateTimeline(timeline = {}) {
       gap_count: gaps.length
     }
   };
+}
+
+function isIsoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
+function isValidDateRange(value) {
+  if (!value || typeof value !== "object") return false;
+  const start = value.start ?? value.from;
+  const end = value.end ?? value.to;
+  return isIsoDate(start) && isIsoDate(end) && start <= end;
 }
 
 export function renderTimeline(timeline = {}, { format = "markdown" } = {}) {

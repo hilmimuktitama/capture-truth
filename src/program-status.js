@@ -8,8 +8,9 @@ export function reconcileProgram({ evidence_pack: evidencePack } = {}) {
 
   return {
     kind: "program_status",
-    version: "0.1.0",
+    version: "0.3.0",
     confirmed_facts: claims.filter(isConfirmedFact).map(statusItem),
+    candidate_facts: claims.filter(isCandidateFact).map(statusItem),
     blockers: claims.filter(isBlocker).map(statusItem),
     risks: claims.filter(isRisk).map(statusItem),
     unknowns: collectUnknowns(evidencePack),
@@ -29,13 +30,17 @@ export function reconcileProgram({ evidence_pack: evidencePack } = {}) {
 }
 
 function isConfirmedFact(claim) {
+  return claim.review_status === "confirmed" || claim.confirmed === true;
+}
+
+function isCandidateFact(claim) {
   const text = claim.text.toLowerCase();
-  return !isBlocker(claim) && !isRisk(claim) && !text.includes("unknown") && !text.includes("tbc");
+  return !isConfirmedFact(claim) && !isBlocker(claim) && !isRisk(claim) && !text.includes("unknown") && !text.includes("tbc");
 }
 
 function isBlocker(claim) {
   const text = claim.text.toLowerCase();
-  return claim.classification === "blocker" || text.includes("blocked") || text.includes("blocker");
+  return claim.polarity !== "negative" && (claim.classification === "blocker" || /\b(blocked|blocker)\b/.test(text));
 }
 
 function isRisk(claim) {

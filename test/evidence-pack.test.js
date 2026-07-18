@@ -24,7 +24,7 @@ test("creates an evidence pack from text and preserves source refs", () => {
   });
 
   assert.equal(pack.kind, "evidence_pack");
-  assert.equal(pack.schema_version, "0.2.0");
+  assert.equal(pack.schema_version, "0.3.0");
   assert.equal(pack.sources.length, 1);
   assert.equal(pack.sources[0].id, "status-note");
   assert.equal(pack.sources[0].path, "notes/status.txt");
@@ -64,7 +64,7 @@ test("extracts claims from markdown, csv, and json sources", () => {
     ]
   });
 
-  assert.equal(pack.claims.length, 3);
+  assert.equal(pack.claims.length, 4);
   assert.equal(pack.claims.some((claim) => claim.text.includes("launch gate")), true);
   assert.equal(pack.claims.some((claim) => claim.text.includes("Migration fallback")), true);
   assert.equal(pack.claims.some((claim) => claim.text.includes("Confirm staging sign-off")), true);
@@ -282,6 +282,7 @@ test("renders internal evidence packs with raw content redacted", () => {
 
   assert.equal(parsed.sources[0].content_redacted, true);
   assert.equal(parsed.sources[0].content, undefined);
+  assert.equal(parsed.exports, undefined);
 });
 
 test("refines packs without dropping existing source refs", () => {

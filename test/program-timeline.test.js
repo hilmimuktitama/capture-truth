@@ -71,6 +71,7 @@ test("program reconcile returns the standard program-status schema", () => {
   assert.deepEqual(Object.keys(status).sort(), [
     "assumptions",
     "blockers",
+    "candidate_facts",
     "confirmed_facts",
     "conflicts",
     "kind",
@@ -80,7 +81,8 @@ test("program reconcile returns the standard program-status schema", () => {
     "version"
   ]);
   assert.equal(status.blockers.length, 1);
-  assert.equal(status.confirmed_facts.length, 1);
+  assert.equal(status.confirmed_facts.length, 0);
+  assert.equal(status.candidate_facts.length, 1);
   assert.equal(status.recommended_write_back.repo.length > 0, true);
   assert.equal(status.recommended_write_back.local_only.length > 0, true);
 });

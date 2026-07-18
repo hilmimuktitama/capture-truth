@@ -40,8 +40,8 @@ From this repository:
 
 ```bash
 npm install
-capture-truth doctor
-truth-tools doctor --all
+node bin/capture-truth.js doctor
+node bin/truth-tools.js doctor --all
 node src/mcp-server.js
 node src/truth-mcp-server.js
 ```
@@ -94,17 +94,17 @@ Aggregate smoke prompt:
 Use the truth-tools MCP server. First call truth_tools.doctor with all=true. Then call capture.create with one text source, capture.validate, and capture.render as Markdown with export_profile repo-safe-summary.
 ```
 
-For repo artifacts, pass `export_profile: "repo-safe-summary"` to `render_evidence_pack` so raw source bodies are omitted before Markdown leaves the local workspace.
+For repo artifacts, pass `export_profile: "repo-safe-summary"` to `render_evidence_pack` so source bodies, candidate claims, evidence items, entities, and unsafe cached exports are omitted before output leaves the local workspace. Pattern-based redaction is defense in depth; review the result before publishing it.
 
 Expected result:
 
 - `create_evidence_pack` returns `kind: evidence_pack`.
-- Every extracted claim has `source_refs`.
+- Every extracted candidate claim has `source_refs`; parsed rows and lines remain available as `evidence_items`.
 - Validation reports missing freshness or capture metadata when the source omits them.
 - Markdown render includes Sources, Claims, Gaps, Conflicts, and Assumptions.
 - Repo-safe render includes summary metadata, gaps, conflicts, assumptions, and redaction warnings without raw source bodies.
 - Aggregate MCP lists `capture.create`, `capture.validate`, `capture.render`, `program.reconcile`, `timeline.create`, `timeline.validate`, `timeline.render`, `benchmark.fixture`, and `truth_tools.doctor`.
 
-For local setup validation, run `capture-truth doctor`. It checks package files, evidence schemas, repo-safe rendering, compact Jira/Confluence adapters, and the MCP tool list.
+For local checkout validation, run `node bin/capture-truth.js doctor`. For an npm-installed package, run `capture-truth doctor`. It checks package files, evidence schemas, repo-safe rendering, compact Jira/Confluence adapters, and the MCP tool list.
 
 For deterministic benchmark validation, call `run_capture_benchmark_fixture` or run `capture-truth benchmark --json`. The fixture covers stale local notes, fresh Jira/Confluence compact intake, source conflicts, repo-safe export, and redaction warnings.

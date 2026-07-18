@@ -5,8 +5,9 @@ const BENCHMARK_NOW = "2026-05-14T00:00:00Z";
 
 export function runBenchmarkFixture() {
   const sources = createBenchmarkSources();
-  const evidencePack = createEvidencePack({ sources, extraction_profile: "benchmark" });
-  const validation = validateEvidencePack(evidencePack);
+  const now = () => new Date(BENCHMARK_NOW);
+  const evidencePack = createEvidencePack({ sources, extraction_profile: "benchmark", now });
+  const validation = validateEvidencePack(evidencePack, { now });
   const repoSafeSummary = renderEvidencePack(evidencePack, {
     format: "markdown",
     export_profile: "repo-safe-summary"
@@ -44,7 +45,7 @@ export function createBenchmarkFixture({
 
   return {
     kind: "truth_tools_benchmark_fixture",
-    version: "0.1.0",
+    version: "0.3.0",
     case_id,
     with_tools,
     without_tools,

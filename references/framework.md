@@ -1,16 +1,18 @@
 # Capture Truth Framework
 
-This framework defines the v0 evidence intake contract behind `capture-truth`.
+This framework defines the v0.3 evidence intake contract behind `capture-truth`.
 
 ## Evidence Pack Shape
 
 ```json
 {
   "kind": "evidence_pack",
-  "version": "0.1.0",
+  "schema_version": "0.3.0",
+  "version": "0.3.0",
   "created_at": "2026-05-12T14:00:00Z",
   "extraction_profile": "general",
   "sources": [],
+  "evidence_items": [],
   "claims": [],
   "entities": {},
   "gaps": [],
@@ -32,11 +34,11 @@ Every source should preserve:
 - `freshness`
 - `access_caveats`
 - raw `content`
-- deterministic `content_hash`
+- deterministic SHA-256 `content_hash`
 
 ## Claim Rules
 
-Claims are atomic captured statements. They are not final truth.
+Evidence items preserve parsed rows or lines. Claims are candidate atomic statements extracted from those items. Neither is final truth.
 
 Every claim must include:
 
@@ -45,8 +47,11 @@ Every claim must include:
 - lightweight `classification`
 - `source_refs`
 - `extracted_at`
+- `polarity`
 
 Classification is a navigation aid only. It must not imply correctness.
+
+Claims enter `confirmed_facts` only after a reviewer sets `review_status: "confirmed"` (or the compatibility field `confirmed: true`). Unreviewed observations remain `candidate_facts`.
 
 ## Gap Rules
 
@@ -58,6 +63,11 @@ Validation should report:
 - `stale_source`
 - `access_caveat`
 - `missing_source_refs`
+- invalid or future capture timestamps
+- unsupported freshness values
+- duplicate claim ids
+- dangling source refs and missing locators
+- unsupported schema versions
 
 Do not hide gaps to make output cleaner.
 
@@ -96,4 +106,4 @@ Use `capture-truth` before:
 - `program-truth`: when the next step is status, blocker, risk, dependency, or decision reconstruction.
 - `timeline-truth`: when the next step is date, milestone, owner, or dependency timeline compilation.
 
-The handoff should include the full JSON pack plus Markdown render.
+The handoff should include the full local JSON pack plus a separately generated repo-safe render. Internal and repo-safe exports are sanitized derivatives and do not contain cached raw exports.

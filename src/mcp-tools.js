@@ -6,35 +6,60 @@ import {
 } from "./evidence-pack.js";
 import { runBenchmarkFixture } from "./benchmark.js";
 
-const SOURCE_SCHEMA = {
+export const SOURCE_SCHEMA = {
   type: "object",
-  required: ["content"],
+  required: ["id", "content"],
   additionalProperties: true,
   properties: {
-    id: { type: "string", description: "Stable source identifier used in source_refs." },
+    id: { type: "string", minLength: 1, maxLength: 256, description: "Stable source identifier used in source_refs." },
     type: { type: "string", enum: ["text", "markdown", "csv", "json"], default: "text" },
     path: { type: "string", description: "Optional local path preserved as source metadata." },
     url: { type: "string", description: "Optional URL preserved as source metadata." },
     key: { type: "string", description: "Optional system key, such as a ticket or page id." },
     adapter: { type: "string", description: "Read-only adapter that produced the source." },
-    captured_at: { type: "string", description: "Capture timestamp in ISO-8601 form." },
-    freshness: { type: "string", description: "Freshness label such as fresh, captured, stale, or unknown." },
-    access_caveats: { type: "array", items: { type: "string" } },
+    captured_at: { type: "string", format: "date-time", description: "Capture timestamp in ISO-8601 form." },
+    freshness: { type: "string", enum: ["fresh", "captured", "stale", "unknown", "fixture"] },
+    access_caveats: { type: "array", maxItems: 100, items: { type: "string", maxLength: 2000 } },
     content: {
       description: "Pasted text/file content. JSON sources may pass a JSON string or object.",
-      oneOf: [{ type: "string" }, { type: "object" }, { type: "array" }]
+      oneOf: [{ type: "string", maxLength: 5000000 }, { type: "object" }, { type: "array", maxItems: 10000 }]
     }
   }
 };
 
-const EVIDENCE_PACK_SCHEMA = {
+const SOURCE_REF_SCHEMA = {
   type: "object",
-  required: ["kind", "sources", "claims"],
+  required: ["source_id", "locator"],
+  additionalProperties: false,
+  properties: {
+    source_id: { type: "string", minLength: 1 },
+    locator: { type: "string", minLength: 1 }
+  }
+};
+
+const CLAIM_SCHEMA = {
+  type: "object",
+  required: ["id", "text", "classification", "source_refs"],
+  additionalProperties: true,
+  properties: {
+    id: { type: "string", minLength: 1 },
+    text: { type: "string", minLength: 1, maxLength: 100000 },
+    classification: { type: "string", enum: ["observation", "blocker", "risk", "decision", "action"] },
+    polarity: { type: "string", enum: ["positive", "negative"] },
+    review_status: { type: "string", enum: ["unreviewed", "confirmed", "rejected"] },
+    source_refs: { type: "array", minItems: 1, maxItems: 100, items: SOURCE_REF_SCHEMA }
+  }
+};
+
+export const EVIDENCE_PACK_SCHEMA = {
+  type: "object",
+  required: ["kind", "schema_version", "sources", "claims"],
   additionalProperties: true,
   properties: {
     kind: { type: "string", enum: ["evidence_pack"] },
-    sources: { type: "array", items: { type: "object", additionalProperties: true } },
-    claims: { type: "array", items: { type: "object", additionalProperties: true } },
+    schema_version: { type: "string", enum: ["0.3.0"] },
+    sources: { type: "array", maxItems: 1000, items: SOURCE_SCHEMA },
+    claims: { type: "array", maxItems: 50000, items: CLAIM_SCHEMA },
     gaps: { type: "array", items: { type: "object", additionalProperties: true } },
     conflicts: { type: "array", items: { type: "object", additionalProperties: true } },
     assumptions: { type: "array", items: { type: "string" } }
@@ -55,6 +80,7 @@ export function listCaptureTools() {
           sources: {
             type: "array",
             minItems: 1,
+            maxItems: 1000,
             items: SOURCE_SCHEMA
           },
           adapters: {

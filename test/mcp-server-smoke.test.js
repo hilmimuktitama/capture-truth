@@ -10,7 +10,7 @@ test("MCP server lists and calls capture-truth tools over stdio", async () => {
     cwd: process.cwd(),
     stderr: "pipe"
   });
-  const client = new Client({ name: "capture-truth-smoke-test", version: "0.1.0" });
+  const client = new Client({ name: "capture-truth-smoke-test", version: "0.3.0" });
 
   try {
     await client.connect(transport);

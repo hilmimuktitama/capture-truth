@@ -8,7 +8,7 @@ import { callTruthTool, listTruthTools } from "./truth-mcp-tools.js";
 const server = new Server(
   {
     name: "truth-tools",
-    version: "0.1.0"
+    version: "0.3.0"
   },
   {
     capabilities: {

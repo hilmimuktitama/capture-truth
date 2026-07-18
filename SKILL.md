@@ -10,10 +10,10 @@ Use this skill when the user needs source intake before analysis. The goal is to
 ## Operating Rules
 
 1. Capture raw source identity before summarizing.
-2. Preserve `source_refs` on every extracted claim.
+2. Preserve parsed `evidence_items` and `source_refs` on every extracted candidate claim.
 3. Record `captured_at`, `freshness`, adapter, path/URL/key, and access caveats when available.
 4. Separate facts captured from source text, extraction gaps, unresolved conflicts, and assumptions.
-5. Do not infer status, timeline, ownership, dates, risk severity, or program truth.
+5. Do not infer status, timeline, ownership, dates, risk severity, or program truth. Only claims explicitly marked `review_status: confirmed` may enter `confirmed_facts`.
 6. Treat live systems as read-only unless the user explicitly asks for a write and approves the exact payload.
 7. If a connector or adapter is unavailable, continue with pasted or local artifacts and state the confidence downgrade.
 
@@ -32,7 +32,7 @@ Every capture output should show:
 - systems or files captured
 - capture timestamp or explicit missing timestamp gap
 - freshness label or missing freshness gap
-- claims with `source_refs`
+- evidence items and candidate claims with `source_refs`
 - unresolved conflicts without resolving them
 - assumptions that are explicit and narrow
 

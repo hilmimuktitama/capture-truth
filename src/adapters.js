@@ -1,3 +1,5 @@
+import { isAbsolute, relative, resolve } from "node:path";
+
 export function createLocalFileAdapter({ fs, baseDir = process.cwd() } = {}) {
   if (!fs?.readFileSync) {
     throw new Error("createLocalFileAdapter requires an fs-like object with readFileSync.");
@@ -15,11 +17,17 @@ export function createLocalFileAdapter({ fs, baseDir = process.cwd() } = {}) {
       if (!input.path) {
         throw new Error("local-file adapter requires input.path.");
       }
-      const content = fs.readFileSync(input.path, "utf8");
+      const basePath = resolve(baseDir);
+      const requestedPath = isAbsolute(input.path) ? resolve(input.path) : resolve(basePath, input.path);
+      assertWithinBase(basePath, requestedPath);
+      if (fs.realpathSync) {
+        assertWithinBase(fs.realpathSync(basePath), fs.realpathSync(requestedPath));
+      }
+      const content = fs.readFileSync(requestedPath, "utf8");
       return {
-        id: input.id ?? input.path,
-        type: input.type ?? inferType(input.path),
-        path: input.path,
+        id: input.id ?? relative(basePath, requestedPath),
+        type: input.type ?? inferType(requestedPath),
+        path: relative(basePath, requestedPath),
         adapter: "local_file",
         captured_at: new Date().toISOString(),
         freshness: input.freshness ?? "captured",
@@ -171,6 +179,7 @@ function freshnessFromUpdatedAt(updatedAt, capturedAt, freshWithinDays) {
   const captured = Date.parse(capturedAt);
   if (!Number.isFinite(updated) || !Number.isFinite(captured)) return "unknown";
   const ageMs = captured - updated;
+  if (ageMs < 0) return "unknown";
   const freshWindowMs = freshWithinDays * 24 * 60 * 60 * 1000;
   return ageMs <= freshWindowMs ? "fresh" : "stale";
 }
@@ -184,6 +193,12 @@ function renderCompactFields(label, fields) {
 
 function normalizeDate(value) {
   return value instanceof Date ? value : new Date(value);
+}
+
+function assertWithinBase(basePath, requestedPath) {
+  const relation = relative(basePath, requestedPath);
+  if (relation === "" || (!relation.startsWith("..") && !isAbsolute(relation))) return;
+  throw new Error(`local-file adapter path escapes baseDir: ${requestedPath}`);
 }
 
 function compactObject(value) {
