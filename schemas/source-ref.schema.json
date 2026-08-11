@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/source-ref.schema.json",
+  "title": "SourceRef",
+  "description": "Canonical structured provenance reference from a claim to a source record. source_id and locator are required: locator is the concrete pointer (url, path, key, or stable id) captured at extraction time. Plain string references and sourceId are deprecated; normalizers convert them to this shape, emit a deprecation finding, and flag the missing locator. Timeline Truth provenance fields (heading, tableRow, line, text) locate the evidence inside the source and are optional passthrough metadata.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_id", "locator"],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of a source record that exists in the same artifact."
+    },
+    "locator": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Concrete pointer to the evidence (URL, path, key, or stable id) captured at extraction time. Missing on reviewed/extracted claims is at least needs_review."
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional human note about what the source supports."
+    },
+    "path": {
+      "type": ["string", "null"],
+      "description": "Optional file path captured at extraction time."
+    },
+    "url": {
+      "type": ["string", "null"],
+      "description": "Optional absolute HTTP(S) URL captured at extraction time."
+    },
+    "observed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "When the evidence was observed, as a full RFC3339 datetime with Z or UTC offset."
+    },
+    "source_updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "Last-modified time reported by the source system, as a full RFC3339 datetime with Z or UTC offset."
+    },
+    "revision": {
+      "type": ["string", "number", "null"],
+      "description": "Optional revision of the source at extraction time."
+    },
+    "content_hash": {
+      "type": ["string", "null"],
+      "pattern": "^(?:sha256:)?[a-f0-9]{64}$",
+      "description": "Optional sha256 content hash in canonical 64-hex form, with or without a sha256: prefix."
+    },
+    "heading": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Timeline Truth provenance: section heading inside the source that contains the evidence."
+    },
+    "tableRow": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeline Truth provenance: 1-based row of the table inside the source that contains the evidence."
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeline Truth provenance: 1-based line number inside the source that contains the evidence."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Timeline Truth provenance: verbatim text quoted at extraction time."
+    }
+  }
+}

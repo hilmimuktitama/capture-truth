@@ -1,0 +1,24 @@
+{
+  "id": "fixture-golden-DEMO-2944",
+  "kind": "record",
+  "type": "record",
+  "adapter": "fixture",
+  "key": "DEMO-2944",
+  "url": "https://example.invalid/jira/DEMO-2944",
+  "path": null,
+  "observed_at": "2026-07-18T12:00:00Z",
+  "source_updated_at": "2026-07-18T10:30:00Z",
+  "revision": 42,
+  "content_hash": "aba97b90a5fdae838c8f300da4ffeb289c585d570ee7ae80502738882965ef88",
+  "locator": "DEMO-2944",
+  "access_caveats": [
+    "fixture data is synthetic; do not treat as production"
+  ],
+  "raw_included": true,
+  "raw": "Status: In Progress\nOwner: Platform\nTarget date: 2026-08-17\nBlocker: none\n",
+  "fields": {
+    "status": "In Progress",
+    "owner": "Platform",
+    "target_date": "2026-08-17"
+  }
+}

@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release (for example, v0.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Validate canonical release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*)|([0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))(\.((0|[1-9][0-9]*)|([0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)))*)?$'
+          if [[ ! "${TAG_NAME}" =~ ${tag_pattern} ]]; then
+            printf 'Release tag must match vX.Y.Z[-prerelease]: %s\n' "${TAG_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Check out the exact release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+          fetch-depth: 0
+
+      - name: Verify tag and package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/${TAG_NAME}^{commit}")"
+          tag_version="${TAG_NAME#v}"
+          package_version="$(node -p "require('./package.json').version")"
+          test "${tag_version}" = "${package_version}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Check syntax
+        run: npm run check
+
+      - name: Verify contracts
+        run: npm run contracts:verify
+
+      - name: Evaluate fixtures
+        run: npm run eval
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Pack verification
+        run: npm pack --dry-run
+
+      - name: Doctor verification
+        run: node bin/capture-truth.js doctor
+
+      - name: Publish package with provenance
+        run: npm publish --provenance --access public

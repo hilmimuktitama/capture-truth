@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/source.schema.json",
+  "title": "Source",
+  "description": "Metadata-only record of an evidence source. Source bodies stay in their system of record; raw content fields (content, body, raw, payload, document, data) are never part of the contract and always fail review. raw_included is optional provenance metadata from a capture component: it records whether the capture record held a body in its system of record, and is never itself treated as a body. observed_at is when the evidence was observed or snapshotted; source_updated_at is the last-modified time reported by the source system and drives the stale_source_content check. Capture provenance extensions (kind, adapter, key, locator, access_caveats, fields, raw_included) are accepted for Capture compatibility.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "observed_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for the source record within the artifact."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["document", "record"],
+      "description": "Capture kind when the record came from a capture component."
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source kind: jira, decision-log, meeting-note, or any explicit label."
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Capture adapter that produced the record."
+    },
+    "key": {
+      "type": ["string", "null"],
+      "description": "Capture key within the adapter (for example the ticket key)."
+    },
+    "url": {
+      "type": ["string", "null"],
+      "pattern": "^https?://",
+      "description": "Absolute HTTP or HTTPS URL to the source of record."
+    },
+    "path": {
+      "type": ["string", "null"],
+      "description": "Optional file path for local sources."
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "When the evidence was observed or snapshotted. Full RFC3339 datetime with Z or UTC offset. Age beyond max_observation_age_days raises stale_observation."
+    },
+    "source_updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "Last-modified time reported by the source system; full RFC3339 datetime with Z or UTC offset. Age beyond max_source_content_age_days raises stale_source_content."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human or team accountable for this source record."
+    },
+    "revision": {
+      "type": ["string", "number", "null"],
+      "description": "Optional source revision at capture time."
+    },
+    "content_hash": {
+      "type": ["string", "null"],
+      "pattern": "^(?:sha256:)?[a-f0-9]{64}$",
+      "description": "Optional sha256 content hash in canonical 64-hex form, with or without a sha256: prefix."
+    },
+    "locator": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Concrete pointer (URL, path, key) to the source of record."
+    },
+    "access_caveats": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Capture caveats about access to the source."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Structured fields extracted by capture; never the raw body."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional capture metadata."
+    },
+    "raw_included": {
+      "type": "boolean",
+      "description": "Optional provenance metadata: whether the capture record held a raw body in its system of record. The body itself never travels in this artifact; raw_included is metadata only and never treated as a raw body."
+    }
+  }
+}

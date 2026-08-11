@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/candidate-claim.schema.json",
+  "title": "CandidateClaim",
+  "description": "Capture output only: a claim as extracted by a capture component, never a final reviewed claim. suggested_kind is optional, classification_method is always 'keyword', review_status is always 'unreviewed', provenance is carried in canonical structured source_refs, and the claim must not carry a final kind field. Reviewed claims are represented by Claim (claim.schema.json).",
+  "type": "object",
+  "required": ["id", "text", "classification_method", "review_status", "source_refs"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable candidate identifier within the capture run."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Extracted candidate text, verbatim."
+    },
+    "suggested_kind": {
+      "type": ["string", "null"],
+      "description": "Optional keyword-classified suggestion (fact, blocker, risk, unknown). Never authoritative."
+    },
+    "classification_method": {
+      "type": "string",
+      "const": "keyword",
+      "description": "How the candidate was extracted and classified."
+    },
+    "review_status": {
+      "type": "string",
+      "const": "unreviewed",
+      "description": "Candidates are always unreviewed; review promotes them to Claims."
+    },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://truth-tools.dev/schemas/source-ref.schema.json" },
+      "description": "Canonical structured provenance references captured at extraction time."
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the candidate was extracted."
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [{ "not": { "required": ["kind"] } }]
+}

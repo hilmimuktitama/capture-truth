@@ -1,0 +1,42 @@
+[
+  {
+    "id": "local-DEMO-2944",
+    "kind": "record",
+    "adapter": "fixture",
+    "key": "DEMO-2944",
+    "url": null,
+    "path": "delivery/status/demo-2944.md",
+    "observed_at": "2026-07-18T10:00:00Z",
+    "source_updated_at": "2026-07-18T10:00:00Z",
+    "revision": 3,
+    "content_hash": "f82878283f88927b3e6f77b2f36766f58a20853f3a9677426a01308fee5284fe",
+    "locator": "delivery/status/demo-2944.md",
+    "access_caveats": [],
+    "raw_included": false,
+    "fields": {
+      "status": "Blocked",
+      "owner": "TBD",
+      "target_date": "2026-08-10"
+    }
+  },
+  {
+    "id": "jira-DEMO-2944",
+    "kind": "record",
+    "adapter": "jira_compact",
+    "key": "DEMO-2944",
+    "url": "https://example.invalid/jira/DEMO-2944",
+    "path": null,
+    "observed_at": "2026-07-18T12:00:00Z",
+    "source_updated_at": "2026-07-18T12:00:00Z",
+    "revision": 9,
+    "content_hash": "158376c0240aace21180a0d55401c9efcc8b4b2109d18485d8912c156436e2a2",
+    "locator": "DEMO-2944",
+    "access_caveats": [],
+    "raw_included": false,
+    "fields": {
+      "status": "In Progress",
+      "assignee": "Platform",
+      "target_date": "2026-08-17"
+    }
+  }
+]

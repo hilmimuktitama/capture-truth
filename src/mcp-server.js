@@ -8,7 +8,7 @@ import { callCaptureTool, listCaptureTools } from "./mcp-tools.js";
 const server = new Server(
   {
     name: "capture-truth",
-    version: "0.3.0"
+    version: "0.4.0"
   },
   {
     capabilities: {
@@ -23,7 +23,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    return callCaptureTool(request.params.name, request.params.arguments ?? {});
+    return await callCaptureTool(request.params.name, request.params.arguments ?? {});
   } catch (error) {
     return {
       isError: true,

@@ -1,7 +1,7 @@
 {
   "name": "capture-truth",
-  "version": "0.3.0",
-  "description": "Local-first truth-tools package for capture, program reconciliation, timeline unknowns, and provenance-preserving TPM evidence packs.",
+  "version": "0.4.0",
+  "description": "Capture already-exported operational material into provenance-preserving evidence packs.",
   "author": "hilmimuktitama",
   "license": "MIT",
   "repository": {
@@ -13,39 +13,49 @@
   },
   "homepage": "https://github.com/hilmimuktitama/capture-truth#readme",
   "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./adapters": "./src/adapters.js",
+    "./capture": "./src/capture.js",
+    "./contracts": "./src/contracts.js",
+    "./mcp": "./src/mcp-tools.js"
+  },
   "bin": {
     "capture-truth": "bin/capture-truth.js",
-    "capture-truth-mcp": "src/mcp-server.js",
-    "truth-tools": "bin/truth-tools.js",
-    "truth-tools-mcp": "src/truth-mcp-server.js"
+    "capture-truth-mcp": "src/mcp-server.js"
   },
   "files": [
     "bin",
     "docs",
     "src",
+    "schemas",
     "examples",
     "references",
     "SKILL.md",
     "README.md",
+    "CHANGELOG.md",
+    "MIGRATION.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "evidence",
+    "markdown",
     "provenance",
     "source-capture",
-    "tpm",
-    "program-management",
-    "ai-agents"
+    "evidence-capture"
   ],
   "scripts": {
     "test": "node --test",
     "check": "node scripts/check-syntax.js",
+    "contracts:verify": "node scripts/contracts-verify.js",
+    "eval": "node scripts/eval.js",
     "pack:dry-run": "npm pack --dry-run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "engines": {
     "node": ">=22"
