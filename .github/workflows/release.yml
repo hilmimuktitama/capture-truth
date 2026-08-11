@@ -51,6 +51,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Install and verify npm 12.0.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global npm@12.0.2
+          npm --version
+          test "$(npm --version)" = "12.0.2"
+
       - name: Install dependencies
         run: npm ci
 
