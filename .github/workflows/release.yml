@@ -50,6 +50,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Install and verify npm 12.0.2
         shell: bash
