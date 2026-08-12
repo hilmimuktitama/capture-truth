@@ -19,7 +19,7 @@ function checkInstall() {
   const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"));
   return {
     name: "install",
-    ok: missing.length === 0 && Number(process.versions.node.split(".")[0]) >= 22 && pkg.version === "0.4.0",
+    ok: missing.length === 0 && Number(process.versions.node.split(".")[0]) >= 22 && pkg.version === "0.4.1",
     message: missing.length ? `Missing: ${missing.join(", ")}` : `Node ${process.versions.node}; v${pkg.version} files present`
   };
 }
@@ -45,6 +45,8 @@ function checkCapture() {
     ok: pack.candidate_claims.length >= 2
       && pack.candidate_claims.every((claim) => claim.review_status === "unreviewed"
         && claim.classification_method === "keyword"
+        && claim.derivation_version === "0.4.1"
+        && ["raw_body", "structured_fields", "metadata", "mixed"].includes(claim.source_material)
         && !Object.hasOwn(claim, "kind"))
       && !portableText.includes("Internal heading")
       && !portableText.includes("hidden marker"),

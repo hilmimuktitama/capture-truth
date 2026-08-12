@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const SCHEMA_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "schemas");
 
-export const CONTRACT_VERSION = "0.4.0";
+export const CONTRACT_VERSION = "0.4.1";
 
 export const SOURCE_SCHEMA = Object.freeze(loadSchema("source.schema.json"));
 export const SOURCE_REF_SCHEMA = Object.freeze(loadSchema("source-ref.schema.json"));
@@ -26,7 +26,7 @@ export const CANDIDATE_CLAIM_SCHEMA = Object.freeze(loadSchema("candidate-claim.
 // other extensions, but those are not canonical Source records.
 export const SOURCE_REQUIRED = ["id", "type", "observed_at"];
 export const SOURCE_REF_REQUIRED = ["source_id", "locator"];
-export const CANDIDATE_CLAIM_REQUIRED = ["id", "text", "classification_method", "review_status", "source_refs"];
+export const CANDIDATE_CLAIM_REQUIRED = ["id", "text", "classification_method", "review_status", "source_refs", "derivation_version", "source_material"];
 
 // Declared property-type contracts. The contracts-verify script compares these
 // against schemas/*.json so that property-type drift (for example a required
@@ -69,11 +69,15 @@ export const CANDIDATE_CLAIM_PROPERTY_TYPES = Object.freeze({
   classification_method: "string",
   review_status: "string",
   source_refs: "array",
-  extracted_at: "string"
+  extracted_at: "string",
+  derivation_version: "string",
+  source_material: "string"
 });
 
 export const CLASSIFICATION_METHOD_KEYWORD = "keyword";
 export const REVIEW_STATUS_UNREVIEWED = "unreviewed";
+export const DERIVATION_VERSION = CONTRACT_VERSION;
+export const SOURCE_MATERIAL_VALUES = Object.freeze(["raw_body", "structured_fields", "metadata", "mixed"]);
 
 const HEX64 = /^(?:sha256:)?[a-f0-9]{64}$/;
 const DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-](\d{2}):(\d{2}))$/;
@@ -158,6 +162,16 @@ export function validateSourceRef(value) {
       errors.push(`$.${key}: must be a valid full RFC3339 datetime with Z or UTC offset, or null`);
     }
   }
+  const properties = SOURCE_REF_SCHEMA.properties;
+  for (const key of Object.keys(properties)) {
+    if (!Object.hasOwn(value, key)) continue;
+    const property = properties[key];
+    if (!matchesSchemaType(value[key], property.type)) errors.push(`$.${key}: has invalid type`);
+    if (property.minLength !== undefined && typeof value[key] === "string" && value[key].length < property.minLength) errors.push(`$.${key}: must be at least ${property.minLength} character(s)`);
+    if (property.minimum !== undefined && (!Number.isInteger(value[key]) || value[key] < property.minimum)) errors.push(`$.${key}: must be an integer >= ${property.minimum}`);
+    if (property.pattern && typeof value[key] === "string" && !new RegExp(property.pattern).test(value[key])) errors.push(`$.${key}: has an invalid format`);
+    if (property.format === "date-time" && value[key] !== null && !validDateTime(value[key])) errors.push(`$.${key}: must be a valid full RFC3339 datetime`);
+  }
   return errors;
 }
 
@@ -172,6 +186,7 @@ export function validateCandidateClaim(value) {
     return ["$: candidate claim must be an object"];
   }
   for (const key of CANDIDATE_CLAIM_REQUIRED) {
+    if (["derivation_version", "source_material"].includes(key)) continue;
     if (key === "source_refs") {
       if (!Array.isArray(value.source_refs) || value.source_refs.length === 0) {
         errors.push("$.source_refs: required non-empty array");
@@ -192,8 +207,24 @@ export function validateCandidateClaim(value) {
   if (value.review_status !== undefined && value.review_status !== REVIEW_STATUS_UNREVIEWED) {
     errors.push(`$.review_status: must be '${REVIEW_STATUS_UNREVIEWED}'`);
   }
+  if (value.derivation_version !== DERIVATION_VERSION) {
+    errors.push(`$.derivation_version: must equal ${DERIVATION_VERSION}`);
+  }
+  if (!SOURCE_MATERIAL_VALUES.includes(value.source_material)) {
+    errors.push(`$.source_material: must be one of ${SOURCE_MATERIAL_VALUES.join(", ")}`);
+  }
   if (Object.hasOwn(value, "kind")) {
     errors.push("$.kind: candidate claims must never carry a final kind; use optional suggested_kind instead");
+  }
+  const properties = CANDIDATE_CLAIM_SCHEMA.properties;
+  for (const key of ["suggested_kind", "extracted_at", "derivation_version", "source_material"]) {
+    if (!Object.hasOwn(value, key)) continue;
+    const property = properties[key];
+    if (!matchesSchemaType(value[key], property.type)) errors.push(`$.${key}: has invalid type`);
+    if (property.minLength !== undefined && typeof value[key] === "string" && value[key].length < property.minLength) errors.push(`$.${key}: must be at least ${property.minLength} character(s)`);
+    if (property.format === "date-time" && !validDateTime(value[key])) errors.push(`$.${key}: must be a valid full RFC3339 datetime`);
+    if (property.const !== undefined && value[key] !== property.const) errors.push(`$.${key}: must equal ${property.const}`);
+    if (property.enum && !property.enum.includes(value[key])) errors.push(`$.${key}: has an invalid value`);
   }
   return errors;
 }
@@ -228,7 +259,9 @@ export function contractFixtures() {
     SOURCE_REF_REQUIRED,
     CANDIDATE_CLAIM_REQUIRED,
     CLASSIFICATION_METHOD_KEYWORD,
-    REVIEW_STATUS_UNREVIEWED
+    REVIEW_STATUS_UNREVIEWED,
+    DERIVATION_VERSION,
+    SOURCE_MATERIAL_VALUES
   };
 }
 
@@ -277,4 +310,9 @@ function daysInMonth(year, month) {
 function raiseOnErrors(errors, label) {
   if (errors.length === 0) return;
   throw new Error(`Invalid ${label}: ${errors[0]}`);
+}
+
+function matchesSchemaType(value, type) {
+  const types = Array.isArray(type) ? type : [type];
+  return types.some((candidate) => candidate === "string" ? typeof value === "string" : candidate === "null" ? value === null : candidate === "object" ? value && typeof value === "object" && !Array.isArray(value) : candidate === "array" ? Array.isArray(value) : candidate === "boolean" ? typeof value === "boolean" : candidate === "number" ? typeof value === "number" : true);
 }
