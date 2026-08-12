@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/candidate-claim.schema.json",
   "title": "CandidateClaim",
-  "description": "Capture output only: a claim as extracted by a capture component, never a final reviewed claim. suggested_kind is optional, classification_method is always 'keyword', review_status is always 'unreviewed', provenance is carried in canonical structured source_refs, and the claim must not carry a final kind field. Reviewed claims are represented by Claim (claim.schema.json).",
+  "description": "Capture output only: a claim as extracted by a capture component, never a final reviewed claim. The enumerable derivation marker is required so privacy decisions survive JSON, filesystem, CLI, and MCP boundaries. raw_body and mixed derivations are never portable. suggested_kind is optional, classification_method is always 'keyword', review_status is always 'unreviewed', provenance is carried in canonical structured source_refs, and the claim must not carry a final kind field. Reviewed claims are represented by Claim (claim.schema.json).",
   "type": "object",
-  "required": ["id", "text", "classification_method", "review_status", "source_refs"],
+  "required": ["id", "text", "classification_method", "review_status", "source_refs", "derivation_version", "source_material"],
   "properties": {
     "id": {
       "type": "string",
@@ -40,6 +40,14 @@
       "type": "string",
       "format": "date-time",
       "description": "When the candidate was extracted."
+    },
+    "derivation_version": {
+      "type": "string",
+      "const": "0.4.1"
+    },
+    "source_material": {
+      "type": "string",
+      "enum": ["raw_body", "structured_fields", "metadata", "mixed"]
     }
   },
   "additionalProperties": false,

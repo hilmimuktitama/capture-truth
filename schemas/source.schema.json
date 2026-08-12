@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/source.schema.json",
   "title": "Source",
-  "description": "Metadata-only record of an evidence source. Source bodies stay in their system of record; raw content fields (content, body, raw, payload, document, data) are never part of the contract and always fail review. raw_included is optional provenance metadata from a capture component: it records whether the capture record held a body in its system of record, and is never itself treated as a body. observed_at is when the evidence was observed or snapshotted; source_updated_at is the last-modified time reported by the source system and drives the stale_source_content check. Capture provenance extensions (kind, adapter, key, locator, access_caveats, fields, raw_included) are accepted for Capture compatibility.",
+  "description": "Metadata-only record of an evidence source. Source bodies stay in their system of record; raw content fields (content, body, raw, payload, document, data) are never part of the contract and always fail review. raw_included is optional provenance metadata from a capture component: it records whether the capture record held a body in its system of record, and is never itself treated as a body. observed_at is when the evidence was observed or snapshotted and drives observation age; source_updated_at is the last-modified time reported by the source system and drives content age. When observed_at < source_updated_at <= as_of, the snapshot gap is reported separately. Capture provenance extensions (kind, adapter, key, locator, access_caveats, fields, raw_included) are accepted for Capture compatibility.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "type", "observed_at"],
@@ -44,13 +44,13 @@
       "type": "string",
       "format": "date-time",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
-      "description": "When the evidence was observed or snapshotted. Full RFC3339 datetime with Z or UTC offset. Age beyond max_observation_age_days raises stale_observation."
+      "description": "When the evidence was observed or snapshotted. Full RFC3339 datetime with Z or UTC offset. Age from as_of raises stale_observation when it exceeds max_observation_age_days."
     },
     "source_updated_at": {
       "type": ["string", "null"],
       "format": "date-time",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
-      "description": "Last-modified time reported by the source system; full RFC3339 datetime with Z or UTC offset. Age beyond max_source_content_age_days raises stale_source_content."
+      "description": "Last-modified time reported by the source system; full RFC3339 datetime with Z or UTC offset. Age from as_of raises stale_source_content when it exceeds max_source_content_age_days; its interval after observed_at is the snapshot gap."
     },
     "owner": {
       "type": "string",
