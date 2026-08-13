@@ -1,3 +1,3 @@
 # MCP setup
 
-Run `npx capture-truth-mcp` with an MCP client. The server is read-only and exposes `capture.normalize`, `capture.evidence_pack`, and `capture.doctor`. Inputs are already-exported records; it never fetches external systems. Portable calls reject `raw-local-only`.
+Run `npx capture-truth-mcp` with an MCP client. The 0.5.0 server is read-only and exposes `capture.normalize`, `capture.evidence_pack`, `capture.candidate_review`, and `capture.doctor`. Inputs are already-exported records; it never fetches external systems. For `capture.evidence_pack`, select `internal-evidence-pack` for reviewable unreviewed structured/metadata candidates; raw and mixed candidates are excluded. Select `portable-summary` explicitly only for approved publication. Candidate review shares the API/CLI full-pack derivation validator. Portable calls reject `raw-local-only`.

@@ -14,7 +14,8 @@ export {
   hashContent,
   normalizeSourceRecord,
   normalizeTimestamp,
-  redactPatterns
+  redactPatterns,
+  reviewCandidateClaim
 } from "./capture.js";
 
 export {
@@ -33,7 +34,14 @@ export {
   validateCanonicalSource,
   validateSourceRecord,
   validateSourceRef,
-  validateEvidencePack
+  validateEvidencePack,
+  validateProfileExport
+} from "./contracts.js";
+
+export {
+  REVIEW_STATUS_APPROVED,
+  REVIEW_STATUS_REJECTED,
+  REVIEW_STATUS_VALUES
 } from "./contracts.js";
 
 export {

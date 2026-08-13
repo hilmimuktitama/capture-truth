@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/source.schema.json",
   "title": "Source",
-  "description": "Metadata-only record of an evidence source. Source bodies stay in their system of record; raw content fields (content, body, raw, payload, document, data) are never part of the contract and always fail review. raw_included is optional provenance metadata from a capture component: it records whether the capture record held a body in its system of record, and is never itself treated as a body. observed_at is when the evidence was observed or snapshotted and drives observation age; source_updated_at is the last-modified time reported by the source system and drives content age. When observed_at < source_updated_at <= as_of, the snapshot gap is reported separately. Capture provenance extensions (kind, adapter, key, locator, access_caveats, fields, raw_included) are accepted for Capture compatibility.",
+  "description": "Capture Truth 0.5-compatible metadata-only source record. Source bodies stay in their system of record; raw-like keys (content, body, raw, raw_body, raw_content/rawContent, payload, document, data), including case variants and recursively nested fields/metadata keys, are rejected by runtime privacy validation. JSON Schema enforces the canonical shape; URL credential semantics and case-insensitive recursive key checks remain runtime validations. raw_included is optional provenance metadata indicating that a capture record held a body in its system of record; it is never itself a body. observed_at records when evidence was observed or snapshotted; source_updated_at records the source-reported last modification. Capture provenance extensions (kind, adapter, key, locator, access_caveats, fields, raw_included) are accepted without permitting source bodies.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "type", "observed_at"],
@@ -59,6 +59,7 @@
     },
     "revision": {
       "type": ["string", "number", "null"],
+      "maxLength": 2048,
       "description": "Optional source revision at capture time."
     },
     "content_hash": {
@@ -73,22 +74,45 @@
     },
     "access_caveats": {
       "type": "array",
-      "items": { "type": "string" },
+      "maxItems": 20,
+      "items": { "type": "string", "maxLength": 512 },
       "description": "Capture caveats about access to the source."
     },
     "fields": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Structured fields extracted by capture; never the raw body."
+      "$ref": "#/$defs/metadata_object",
+      "description": "Structured fields extracted by capture; never the raw body or a recursively nested raw-body field."
     },
     "metadata": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Optional capture metadata."
+      "$ref": "#/$defs/metadata_object",
+      "description": "Optional capture metadata; raw-body fields are rejected recursively."
     },
     "raw_included": {
       "type": "boolean",
       "description": "Optional provenance metadata: whether the capture record held a raw body in its system of record. The body itself never travels in this artifact; raw_included is metadata only and never treated as a raw body."
+    }
+  },
+  "$defs": {
+    "metadata_object": {
+      "type": "object",
+      "maxProperties": 100,
+      "propertyNames": {
+        "not": {
+          "anyOf": [
+            {
+              "pattern": "^[^A-Za-z0-9]*(?:[Cc][Oo][Nn][Tt][Ee][Nn][Tt][Ss]?|[Bb][Oo][Dd][Yy]|[Rr][Aa][Ww](?:[^A-Za-z0-9]*(?:[Bb][Oo][Dd][Yy]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]|[Dd][Aa][Tt][Aa]))?|[Pp][Aa][Yy][Ll][Oo][Aa][Dd]|[Dd][Oo][Cc][Uu][Mm][Ee][Nn][Tt]|[Dd][Ee][Ss][Cc][Rr][Ii][Pp][Tt][Ii][Oo][Nn](?:[^A-Za-z0-9]*[Mm][Aa][Rr][Kk][Dd][Oo][Ww][Nn])?|[Mm][Ee][Ss][Ss][Aa][Gg][Ee]|[Hh][Tt][Mm][Ll]|[Mm][Aa][Rr][Kk][Dd][Oo][Ww][Nn]|[Pp][Rr][Oo][Ss][Ee]|[Bb][Ll][Oo][Bb]|[Tt][Ee][Xx][Tt]|[Dd][Aa][Tt][Aa])[^A-Za-z0-9]*$"
+            },
+            { "pattern": "^(?:__[Pp][Rr][Oo][Tt][Oo]__|[Pp][Rr][Oo][Tt][Oo][Tt][Yy][Pp][Ee]|[Cc][Oo][Nn][Ss][Tt][Rr][Uu][Cc][Tt][Oo][Rr])$" }
+          ]
+        }
+      },
+      "additionalProperties": { "$ref": "#/$defs/metadata_value" }
+    },
+    "metadata_value": {
+      "anyOf": [
+        { "type": ["string", "number", "boolean", "null"], "maxLength": 2048 },
+        { "$ref": "#/$defs/metadata_object" },
+        { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/metadata_value" } }
+      ]
     }
   }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Aligned candidate, source, and source-reference schemas with Truth Tools.
+- Added recursive runtime shape/privacy validation and URL-aware sanitization for paths, locators, nested values, queries, fragments, and encoded URLs.
+- Candidate approval now validates the complete pack and rejects forged, raw-body, and mixed approvals through API, CLI, and MCP.
+- Added the MCP candidate review tool and portable-summary profile enum; MCP reports version 0.5.0.
+
 ## 0.4.1
 
 - Added serialization-safe, versioned candidate derivation metadata.

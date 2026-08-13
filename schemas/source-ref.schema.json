@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/source-ref.schema.json",
   "title": "SourceRef",
-  "description": "Canonical structured provenance reference from a claim to a source record. source_id and locator are required: locator is the concrete pointer (url, path, key, or stable id) captured at extraction time. Plain string references and sourceId are deprecated; normalizers convert them to this shape, emit a deprecation finding, and flag the missing locator. Timeline Truth provenance fields (heading, tableRow, line, text) locate the evidence inside the source and are optional passthrough metadata.",
+  "description": "Capture Truth 0.5-compatible structured provenance reference from a claim to a source record. source_id and locator are required. References carry locators and bounded metadata only, never verbatim source text; SourceRef has no text property. Plain string references and sourceId are deprecated; normalizers convert them to this shape, emit a deprecation finding, and flag the missing locator. Runtime privacy validation rejects credentials in HTTP(S) locator/url userinfo, query, and fragment components.",
   "type": "object",
   "additionalProperties": false,
   "required": ["source_id", "locator"],
@@ -10,25 +10,30 @@
     "source_id": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 2048,
       "description": "Identifier of a source record that exists in the same artifact."
     },
     "locator": {
       "type": "string",
       "minLength": 1,
-      "description": "Concrete pointer to the evidence (URL, path, key, or stable id) captured at extraction time. Missing on reviewed/extracted claims is at least needs_review."
+      "maxLength": 2048,
+      "description": "Concrete pointer to the evidence (URL, path, key, or stable id) captured at extraction time. Shape is validated here; runtime privacy validation rejects credentials in HTTP(S) locator userinfo, query, or fragment components. Missing on reviewed/extracted claims is at least needs_review."
     },
     "note": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 2048,
       "description": "Optional human note about what the source supports."
     },
     "path": {
       "type": ["string", "null"],
+      "maxLength": 2048,
       "description": "Optional file path captured at extraction time."
     },
     "url": {
       "type": ["string", "null"],
-      "description": "Optional absolute HTTP(S) URL captured at extraction time."
+      "maxLength": 2048,
+      "description": "Optional absolute HTTP(S) URL captured at extraction time. Shape is validated here; runtime privacy validation rejects credential-like userinfo, query, or fragment components."
     },
     "observed_at": {
       "type": ["string", "null"],
@@ -44,6 +49,7 @@
     },
     "revision": {
       "type": ["string", "number", "null"],
+      "maxLength": 2048,
       "description": "Optional revision of the source at extraction time."
     },
     "content_hash": {
@@ -54,6 +60,7 @@
     "heading": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 2048,
       "description": "Timeline Truth provenance: section heading inside the source that contains the evidence."
     },
     "tableRow": {
@@ -65,11 +72,6 @@
       "type": "integer",
       "minimum": 1,
       "description": "Timeline Truth provenance: 1-based line number inside the source that contains the evidence."
-    },
-    "text": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Timeline Truth provenance: verbatim text quoted at extraction time."
     }
   }
 }
