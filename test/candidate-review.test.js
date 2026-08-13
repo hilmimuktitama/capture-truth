@@ -33,6 +33,18 @@ test("review requires reviewer and timestamp and persists through JSON", () => {
   assert.equal(pack.candidate_claims.find((entry) => entry.id === candidateId).review_status, "unreviewed");
 });
 
+test("sequential review preserves prior decisions and excludes rejection", () => {
+  const pack = fixturePack();
+  const structured = pack.candidate_claims.find((candidate) => candidate.source_material === "structured_fields");
+  const metadata = pack.candidate_claims.find((candidate) => candidate.source_material === "metadata");
+  const first = reviewCandidateClaim(pack, { candidateId: structured.id, decision: "approve-portable", reviewedBy: "Ada", reviewedAt });
+  const second = reviewCandidateClaim(first, { candidateId: metadata.id, decision: "reject", reviewedBy: "Ada", reviewedAt });
+  assert.equal(second.candidate_claims.find((candidate) => candidate.id === structured.id).review_status, "approved_for_portable");
+  assert.equal(second.candidate_claims.find((candidate) => candidate.id === metadata.id).review_status, "rejected");
+  const output = buildProfileExport(JSON.parse(JSON.stringify(second)), "portable-summary");
+  assert.deepEqual(output.candidate_claims.map((candidate) => candidate.id), [structured.id]);
+});
+
 test("approval validates the complete pack and refuses raw or mixed derivations", () => {
   const pack = fixturePack();
   const candidate = pack.candidate_claims.find((entry) => entry.source_material === "structured_fields");

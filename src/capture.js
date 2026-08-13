@@ -2,7 +2,6 @@ import { CONTRACT_VERSION } from "./contracts.js";
 import { extractCandidateClaims, classifySuggestedKind } from "./candidate-extraction.js";
 import {
   canonicalLocator,
-  compact,
   diagnostic,
   normalizeSourceRecord,
   hashContent,
@@ -20,9 +19,15 @@ import {
 } from "./portable-export.js";
 import { redactPatterns, sanitizeCredentialUrls } from "./redaction.js";
 
-export const PACKAGE_VERSION = "0.5.0";
+export const PACKAGE_VERSION = "0.5.1";
+export const OUTPUT_MODES = Object.freeze(["pack", "export", "both"]);
 export const CLASSIFICATION_METHOD = "keyword";
 export const REVIEW_STATUS = "unreviewed";
+
+function assertOutputMode(outputMode) {
+  if (!OUTPUT_MODES.includes(outputMode)) throw new Error(`outputMode must be one of ${OUTPUT_MODES.join(", ")}.`);
+  return outputMode;
+}
 
 export function createEvidencePack({ sources = [], now = () => new Date() } = {}) {
   const clock = validClock(now());
@@ -78,6 +83,21 @@ export function createEvidencePack({ sources = [], now = () => new Date() } = {}
   };
 }
 
+/**
+ * Render a capture/review result without making a pack depend on an export
+ * profile. Packs are the durable review surface; exports are projections.
+ */
+export function buildCaptureOutput(pack, { outputMode = "pack", profile } = {}) {
+  assertOutputMode(outputMode);
+  if (outputMode === "pack") {
+    if (profile !== undefined) throw new Error("profile is only valid when outputMode is export or both.");
+    return pack;
+  }
+  if (profile === undefined) throw new Error("profile is required when outputMode is export or both.");
+  const exported = buildProfileExport(pack, profile);
+  return outputMode === "both" ? { pack, export: exported } : exported;
+}
+
 /** @deprecated Compatibility alias for createEvidencePack. */
 export const captureSources = createEvidencePack;
 
@@ -87,6 +107,7 @@ function plainObject(value) {
 
 export {
   buildProfileExport,
+  assertOutputMode,
   canonicalLocator,
   classifySuggestedKind,
   DEFAULT_REDACTION_PATTERNS,

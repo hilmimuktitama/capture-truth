@@ -8,7 +8,7 @@ import { callCaptureTool, listCaptureTools } from "./mcp-tools.js";
 const server = new Server(
   {
     name: "capture-truth",
-    version: "0.5.0"
+    version: "0.5.1"
   },
   {
     capabilities: {

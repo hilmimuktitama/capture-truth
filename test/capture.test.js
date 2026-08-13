@@ -7,8 +7,8 @@ import { isCredentialKey, rawLikeKey } from "../src/redaction.js";
 const now = () => new Date("2026-07-19T00:00:00Z");
 test("captures provenance and keyword candidate claims", () => {
   const pack = createEvidencePack({ now, sources: [{ id: "s1", type: "note", locator: "docs/a", observed_at: "2026-07-18T12:00:00+02:00", fields: { status: "Blocked" } }] });
-   assert.equal(pack.schema_version, "0.5.0"); assert.equal(pack.sources[0].observed_at, "2026-07-18T10:00:00.000Z");
-  assert.equal(pack.candidate_claims[0].suggested_kind, "status"); assert.equal(pack.candidate_claims[0].review_status, "unreviewed"); assert.equal(pack.candidate_claims[0].derivation_version, "0.5.0"); assert.equal(pack.candidate_claims[0].source_material, "structured_fields"); assert.equal(validateEvidencePack(pack).length, 0);
+   assert.equal(pack.schema_version, "0.5.1"); assert.equal(pack.sources[0].observed_at, "2026-07-18T10:00:00.000Z");
+  assert.equal(pack.candidate_claims[0].suggested_kind, "status"); assert.equal(pack.candidate_claims[0].review_status, "unreviewed"); assert.equal(pack.candidate_claims[0].derivation_version, "0.5.1"); assert.equal(pack.candidate_claims[0].source_material, "structured_fields"); assert.equal(validateEvidencePack(pack).length, 0);
 });
 test("quality diagnostics are deterministic and invalid times do not crash capture", () => {
   const pack = createEvidencePack({ now, sources: [{ id: "s", observed_at: "2026-02-30T00:00:00Z", content_hash: "bad", fields: { blocker: "Needs input" } }, { id: "s", captured_at: "2026-07-19", fields: {} }] });
@@ -158,7 +158,7 @@ test("candidate derivation survives serialization and applies conservative mater
   const confidential = "Quarterly customer escalation: exact confidential prose with no secret-like token.";
   const pack = createEvidencePack({ now, sources: [{ id: "materials", locator: "m", raw: confidential, fields: { status: "Ready" }, metadata: { owner: "ops" } }] });
   const roundTripped = JSON.parse(JSON.stringify(pack));
-  assert.deepEqual(roundTripped.candidate_claims.map((claim) => [claim.derivation_version, claim.source_material]), [["0.5.0", "raw_body"], ["0.5.0", "structured_fields"], ["0.5.0", "metadata"]]);
+   assert.deepEqual(roundTripped.candidate_claims.map((claim) => [claim.derivation_version, claim.source_material]), [["0.5.1", "raw_body"], ["0.5.1", "structured_fields"], ["0.5.1", "metadata"]]);
   const portable = buildProfileExport(roundTripped, "internal-evidence-pack");
   assert.equal(portable.candidate_claims.some((claim) => claim.text === confidential), false);
   assert.equal(portable.candidate_claims.some((claim) => claim.source_material === "structured_fields"), true);
