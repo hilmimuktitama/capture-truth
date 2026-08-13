@@ -17,7 +17,7 @@ import { rawLikeKey } from "./redaction.js";
 
 const SCHEMA_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "schemas");
 
-export const CONTRACT_VERSION = "0.5.0";
+export const CONTRACT_VERSION = "0.5.1";
 
 export const SOURCE_SCHEMA = Object.freeze(loadSchema("source.schema.json"));
 export const SOURCE_REF_SCHEMA = Object.freeze(loadSchema("source-ref.schema.json"));

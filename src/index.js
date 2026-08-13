@@ -6,6 +6,7 @@ export {
   RAW_LOCAL_ONLY_PROFILE,
   REVIEW_STATUS,
   buildProfileExport,
+  buildCaptureOutput,
   createEvidencePack,
   canonicalLocator,
   captureSources,
@@ -15,7 +16,8 @@ export {
   normalizeSourceRecord,
   normalizeTimestamp,
   redactPatterns,
-  reviewCandidateClaim
+  reviewCandidateClaim,
+  OUTPUT_MODES
 } from "./capture.js";
 
 export {
