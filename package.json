@@ -1,6 +1,6 @@
 {
   "name": "capture-truth",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Capture already-exported operational material into provenance-preserving evidence packs.",
   "author": "hilmimuktitama",
   "license": "MIT",

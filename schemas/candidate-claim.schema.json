@@ -27,8 +27,18 @@
     },
     "review_status": {
       "type": "string",
-      "const": "unreviewed",
-      "description": "Candidates are always unreviewed; review promotes them to Claims."
+      "enum": ["unreviewed", "approved_for_portable", "rejected"],
+      "description": "Candidate review state. Extraction emits unreviewed; approved_for_portable and rejected are explicit review decisions."
+    },
+    "reviewed_by": {
+      "type": ["string", "null"],
+      "description": "Non-authenticated reviewer attribution for an approved or rejected candidate."
+    },
+    "reviewed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "RFC3339 time supplied with the review decision."
     },
     "source_refs": {
       "type": "array",
@@ -43,13 +53,32 @@
     },
     "derivation_version": {
       "type": "string",
-      "const": "0.4.1"
+      "const": "0.5.0",
+      "description": "Capture Truth derivation contract version."
     },
     "source_material": {
       "type": "string",
-      "enum": ["raw_body", "structured_fields", "metadata", "mixed"]
+      "enum": ["raw_body", "structured_fields", "metadata", "mixed"],
+      "description": "Material class from which the candidate was derived; raw_body and mixed are not portable."
     }
   },
   "additionalProperties": false,
-  "allOf": [{ "not": { "required": ["kind"] } }]
+  "allOf": [
+    { "not": { "required": ["kind"] } },
+    {
+      "if": {
+        "required": ["review_status"],
+        "properties": {
+          "review_status": { "enum": ["approved_for_portable", "rejected"] }
+        }
+      },
+      "then": {
+        "required": ["reviewed_by", "reviewed_at"],
+        "properties": {
+          "reviewed_by": { "type": "string", "pattern": ".*\\S.*" },
+          "reviewed_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  ]
 }
